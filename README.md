@@ -523,29 +523,53 @@ Authorization: Bearer eyJhbGc...
 
 ```
 streamqbit-platform/
-├── frontend/               # Vue 3 Application
+├── backend/                    # Node.js + Express API ✅
 │   ├── src/
-│   │   ├── components/    # Componentes reutilizables
-│   │   ├── views/         # Páginas
-│   │   ├── stores/        # Pinia stores
-│   │   ├── services/      # API services
-│   │   └── router/        # Vue Router
-│   └── public/
-│
-├── backend/               # Node.js + Express API
-│   ├── src/
-│   │   ├── controllers/   # Route controllers
-│   │   ├── services/      # Business logic
-│   │   ├── routes/        # API routes
-│   │   ├── middlewares/   # Express middlewares
-│   │   ├── validators/    # Zod schemas
-│   │   ├── jobs/          # Cron jobs
-│   │   └── prisma/        # Database schema
+│   │   ├── controllers/       # Route controllers
+│   │   ├── services/          # Business logic
+│   │   ├── routes/            # API routes
+│   │   ├── middlewares/       # Express middlewares
+│   │   ├── jobs/              # Cron jobs
+│   │   └── prisma/            # Database schema
 │   └── tests/
 │
-├── docker/                # Docker configs
-├── docs/                  # Documentación
-├── scripts/               # Utility scripts
+├── frontend/                   # Vue 3 Web Application (pendiente)
+│   ├── src/
+│   │   ├── components/        # Componentes reutilizables
+│   │   ├── views/             # Páginas
+│   │   ├── stores/            # Pinia stores
+│   │   ├── services/          # API services
+│   │   └── router/            # Vue Router
+│   └── public/
+│
+├── mobile-android/             # App Android (Kotlin) ✅
+│   ├── app/
+│   │   └── src/main/
+│   │       ├── kotlin/        # Código Kotlin
+│   │       └── res/           # Recursos (layouts, drawables)
+│   ├── README_QBITSTREAM.md   # Guía de personalización
+│   └── build.gradle
+│
+├── mobile-androidtv/           # App Android TV (Kotlin) ✅
+│   ├── app/
+│   │   └── src/main/
+│   │       ├── java/          # Código Java/Kotlin
+│   │       └── res/           # Recursos Leanback UI
+│   ├── README_QBITSTREAM.md   # Guía de personalización
+│   └── build.gradle
+│
+├── mobile-ios/                 # App iOS/tvOS (Swift) (pendiente)
+│   ├── Swiftfin/
+│   │   ├── Views/
+│   │   ├── ViewModels/
+│   │   └── Resources/
+│   └── README_QBITSTREAM.md
+│
+├── docker/                     # Docker configs
+├── docs/                       # Documentación
+│   ├── API.md
+│   └── SERVER-DETECTION.md
+├── scripts/                    # Utility scripts
 └── docker-compose.yml
 ```
 

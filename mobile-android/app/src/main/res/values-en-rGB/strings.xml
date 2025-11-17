@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dialog_web_view_not_supported">WebView not supported</string>
+    <string name="dialog_web_view_outdated">WebView outdated</string>
+    <string name="dialog_web_view_outdated_message">The WebView implementation used by your device is outdated.\nPlease update it to a compatible version.</string>
+    <string name="dialog_button_check_for_updates">Check for updates</string>
+    <string name="dialog_button_close_app">Close app</string>
+    <string name="dialog_web_view_not_supported_message">WebViews are not supported by this device.\nInstall a compatible WebView implementation or switch to a supported device.</string>
+    <string name="dialog_button_open_settings">Open settings</string>
+    <string name="dialog_button_ignore">Ignore</string>
+    <string name="toast_reopen_after_change">Please reopen the app after changes are made</string>
+    <string name="connect_to_server_title">Connect to Server</string>
+    <string name="host_input_hint">Host</string>
+    <string name="connection_error_cannot_connect">Connection cannot be established.\nPlease check the hostname and your network connection.</string>
+    <plurals name="connection_error_prefix">
+        <item quantity="one">Tried %d candidate for input, without success.</item>
+        <item quantity="other">Tried %d candidates for input, without success.</item>
+    </plurals>
+    <string name="connection_error_unable_to_reach_sever">Unable to reach server</string>
+    <string name="connection_error_unsupported_version_or_product">Unsupported version or product</string>
+    <string name="connect_button_text">Connect</string>
+    <string name="choose_server_button_text">Choose server</string>
+    <string name="available_servers_title">Available servers</string>
+    <string name="button_use_different_server">Use a different server</string>
+    <string name="bluetooth_permission_title">Allow Bluetooth access?</string>
+</resources>

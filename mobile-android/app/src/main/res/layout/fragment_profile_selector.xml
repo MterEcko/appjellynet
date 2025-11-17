@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    tools:context=".ui.ProfileSelectorFragment">
+
+    <!-- Content Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:gravity="center">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/profileSelectorTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="¿Quién está viendo?"
+            android:textSize="48sp"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:layout_marginBottom="48dp"
+            android:fontFamily="sans-serif-medium" />
+
+        <!-- Profiles Grid -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/profilesRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipToPadding="false"
+            tools:listitem="@layout/item_profile" />
+
+        <!-- Manage Profiles Button -->
+        <Button
+            android:id="@+id/manageProfilesButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Administrar Perfiles"
+            android:textColor="@color/grey_light"
+            android:textSize="18sp"
+            android:background="@android:color/transparent"
+            android:layout_marginTop="48dp"
+            style="?android:attr/borderlessButtonStyle" />
+
+    </LinearLayout>
+
+    <!-- Loading Indicator -->
+    <ProgressBar
+        android:id="@+id/loadingIndicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:indeterminateTint="@color/jellyfin_blue" />
+
+    <!-- Error Message -->
+    <TextView
+        android:id="@+id/errorMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="Error al cargar perfiles"
+        android:textColor="@color/red"
+        android:textSize="18sp"
+        android:visibility="gone"
+        android:padding="16dp" />
+
+</FrameLayout>
