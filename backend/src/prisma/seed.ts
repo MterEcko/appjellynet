@@ -25,11 +25,12 @@ async function main() {
   console.log('✅ Admin user created:', admin.email);
 
   // Create Jellyfin servers
+  // Configuración específica para tu red
   const servers = [
     {
       serverId: 'local',
-      name: 'Servidor Local',
-      url: 'http://10.10.0.111:8096',
+      name: 'Red Interna',
+      url: 'http://10.10.0.112:8096',
       networkCidr: '10.10.0.0/24',
       priority: 1,
       protocol: 'http',
@@ -37,8 +38,8 @@ async function main() {
     },
     {
       serverId: 'wisp',
-      name: 'Red WISP',
-      url: 'http://172.16.8.23:8096',
+      name: 'Red WISP (Clientes)',
+      url: 'http://172.16.0.4:8096',
       networkCidr: '172.16.0.0/16',
       priority: 2,
       protocol: 'http',
@@ -47,18 +48,27 @@ async function main() {
     {
       serverId: 'isp',
       name: 'Red ISP',
-      url: 'http://100.10.0.15:8096',
-      networkCidr: '100.10.0.0/16',
+      url: 'http://179.120.0.15:8096',
+      networkCidr: '179.120.0.0/24',
       priority: 3,
       protocol: 'http',
       isFallback: false,
     },
     {
-      serverId: 'public',
-      name: 'Dominio Público',
-      url: 'https://stream.serviciosqbit.net',
-      networkCidr: null,
+      serverId: 'isp-public',
+      name: 'IP Pública ISP (Puerto 8081)',
+      url: 'http://189.168.20.1:8081',
+      networkCidr: '189.168.20.0/24',
       priority: 4,
+      protocol: 'http',
+      isFallback: false,
+    },
+    {
+      serverId: 'public',
+      name: 'Dominio Público HTTPS',
+      url: 'https://qbitstream.serviciosqbit.net',
+      networkCidr: null,
+      priority: 5,
       protocol: 'https',
       isFallback: true,
     },
