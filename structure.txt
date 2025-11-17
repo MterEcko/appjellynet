@@ -1,0 +1,612 @@
+# ESTRUCTURA COMPLETA DE ARCHIVOS - STREAMQBIT PROJECT
+
+```
+streamqbit-platform/
+│
+├── .gitignore
+├── .prettierrc
+├── .eslintrc.js
+├── README.md
+├── docker-compose.yml
+├── .env.example
+│
+├── frontend/                          # Vue 3 Application
+│   ├── public/
+│   │   ├── favicon.ico
+│   │   ├── manifest.json              # PWA manifest
+│   │   ├── robots.txt
+│   │   └── apple-touch-icon.png
+│   │
+│   ├── src/
+│   │   ├── assets/                    # Recursos estáticos
+│   │   │   ├── images/
+│   │   │   │   ├── logo.svg
+│   │   │   │   ├── logo-small.svg
+│   │   │   │   ├── default-avatar.png
+│   │   │   │   ├── placeholder-poster.jpg
+│   │   │   │   └── hero-placeholder.jpg
+│   │   │   │
+│   │   │   └── styles/
+│   │   │       ├── main.css           # Estilos globales
+│   │   │       ├── tailwind.css       # Imports de Tailwind
+│   │   │       └── animations.css     # Animaciones custom
+│   │   │
+│   │   ├── components/                # Componentes Vue reutilizables
+│   │   │   │
+│   │   │   ├── common/                # Componentes comunes
+│   │   │   │   ├── Button.vue
+│   │   │   │   ├── Input.vue
+│   │   │   │   ├── TextArea.vue
+│   │   │   │   ├── Select.vue
+│   │   │   │   ├── Checkbox.vue
+│   │   │   │   ├── Radio.vue
+│   │   │   │   ├── Modal.vue
+│   │   │   │   ├── Toast.vue
+│   │   │   │   ├── Loading.vue
+│   │   │   │   ├── Spinner.vue
+│   │   │   │   ├── Dropdown.vue
+│   │   │   │   ├── Avatar.vue
+│   │   │   │   ├── Badge.vue
+│   │   │   │   ├── Card.vue
+│   │   │   │   ├── Pagination.vue
+│   │   │   │   └── EmptyState.vue
+│   │   │   │
+│   │   │   ├── layout/                # Componentes de layout
+│   │   │   │   ├── Navbar.vue
+│   │   │   │   ├── NavbarMobile.vue
+│   │   │   │   ├── Sidebar.vue        # Para admin panel
+│   │   │   │   ├── Footer.vue
+│   │   │   │   ├── Container.vue
+│   │   │   │   └── PageHeader.vue
+│   │   │   │
+│   │   │   ├── auth/                  # Componentes de autenticación
+│   │   │   │   ├── LoginForm.vue
+│   │   │   │   ├── ForgotPasswordForm.vue
+│   │   │   │   ├── ResetPasswordForm.vue
+│   │   │   │   └── AuthLayout.vue
+│   │   │   │
+│   │   │   ├── profile/               # Componentes de perfiles
+│   │   │   │   ├── ProfileSelector.vue
+│   │   │   │   ├── ProfileCard.vue
+│   │   │   │   ├── ProfileGrid.vue
+│   │   │   │   ├── CreateProfileModal.vue
+│   │   │   │   ├── EditProfileModal.vue
+│   │   │   │   ├── DeleteProfileModal.vue
+│   │   │   │   └── ProfileSettings.vue
+│   │   │   │
+│   │   │   ├── content/               # Componentes de contenido
+│   │   │   │   ├── HeroBanner.vue     # Banner destacado tipo Netflix
+│   │   │   │   ├── ContentRow.vue     # Fila horizontal de contenido
+│   │   │   │   ├── ContentCarousel.vue
+│   │   │   │   ├── ItemCard.vue       # Tarjeta individual de película/serie
+│   │   │   │   ├── ItemCardSkeleton.vue
+│   │   │   │   ├── ItemDetail.vue     # Modal con detalles del item
+│   │   │   │   ├── ItemDetailModal.vue
+│   │   │   │   ├── SearchResults.vue
+│   │   │   │   ├── SearchBar.vue
+│   │   │   │   ├── GenreFilter.vue
+│   │   │   │   ├── FilterBar.vue
+│   │   │   │   └── LibraryGrid.vue
+│   │   │   │
+│   │   │   ├── player/                # Componentes del reproductor
+│   │   │   │   ├── AdEnabledPlayer.vue    # Player principal con ads
+│   │   │   │   ├── JellyfinPlayer.vue     # Wrapper del player de Jellyfin
+│   │   │   │   ├── AdOverlay.vue          # Overlay de anuncio
+│   │   │   │   ├── AdVideoPlayer.vue      # Player específico para ads
+│   │   │   │   ├── PauseAdBanner.vue      # Banner en pausa
+│   │   │   │   ├── PlayerControls.vue     # Controles personalizados
+│   │   │   │   ├── PlayerProgressBar.vue
+│   │   │   │   ├── PlayerVolumeControl.vue
+│   │   │   │   └── PlayerFullscreenButton.vue
+│   │   │   │
+│   │   │   ├── account/               # Componentes de cuenta
+│   │   │   │   ├── AccountInfo.vue
+│   │   │   │   ├── SubscriptionCard.vue
+│   │   │   │   ├── PaymentMethodCard.vue
+│   │   │   │   ├── ChangePasswordForm.vue
+│   │   │   │   ├── PlanComparison.vue
+│   │   │   │   └── UpgradeModal.vue
+│   │   │   │
+│   │   │   └── admin/                 # Componentes de admin
+│   │   │       ├── Dashboard.vue
+│   │   │       ├── StatsCard.vue
+│   │   │       ├── UserTable.vue
+│   │   │       ├── AccountTable.vue
+│   │   │       ├── CreateAccountForm.vue
+│   │   │       ├── CreateAccountModal.vue
+│   │   │       ├── EditAccountModal.vue
+│   │   │       ├── SuspendAccountModal.vue
+│   │   │       ├── AdUploader.vue
+│   │   │       ├── AdManager.vue
+│   │   │       ├── AdTable.vue
+│   │   │       ├── AdPreview.vue
+│   │   │       ├── ServerConfig.vue
+│   │   │       ├── ServerTable.vue
+│   │   │       ├── ServerHealthCheck.vue
+│   │   │       ├── WebhookConfig.vue
+│   │   │       ├── WebhookTable.vue
+│   │   │       ├── WebhookLogViewer.vue
+│   │   │       ├── AnalyticsChart.vue
+│   │   │       ├── AnalyticsDashboard.vue
+│   │   │       ├── AuditLog.vue
+│   │   │       └── AuditLogTable.vue
+│   │   │
+│   │   ├── views/                     # Páginas completas (routes)
+│   │   │   │
+│   │   │   ├── public/                # Páginas públicas
+│   │   │   │   ├── LandingPage.vue
+│   │   │   │   ├── LoginPage.vue
+│   │   │   │   ├── ForgotPasswordPage.vue
+│   │   │   │   ├── ResetPasswordPage.vue
+│   │   │   │   ├── PlansPage.vue
+│   │   │   │   └── NotFoundPage.vue
+│   │   │   │
+│   │   │   ├── app/                   # Páginas de la aplicación
+│   │   │   │   ├── ProfileSelectPage.vue
+│   │   │   │   ├── BrowsePage.vue         # Página principal (Netflix-like)
+│   │   │   │   ├── WatchPage.vue          # Página del reproductor
+│   │   │   │   ├── SearchPage.vue
+│   │   │   │   ├── LibraryPage.vue        # Ver biblioteca completa
+│   │   │   │   ├── GenrePage.vue          # Ver género específico
+│   │   │   │   ├── MyListPage.vue         # Favoritos
+│   │   │   │   ├── ContinueWatchingPage.vue
+│   │   │   │   └── ItemDetailPage.vue
+│   │   │   │
+│   │   │   ├── account/               # Páginas de cuenta
+│   │   │   │   ├── AccountPage.vue
+│   │   │   │   ├── ProfilesManagePage.vue
+│   │   │   │   ├── SubscriptionPage.vue
+│   │   │   │   ├── SettingsPage.vue
+│   │   │   │   ├── BillingPage.vue
+│   │   │   │   └── SecurityPage.vue
+│   │   │   │
+│   │   │   └── admin/                 # Páginas de administración
+│   │   │       ├── AdminDashboard.vue
+│   │   │       ├── UsersManagement.vue
+│   │   │       ├── AccountsManagement.vue
+│   │   │       ├── ProfilesManagement.vue
+│   │   │       ├── AdsManagement.vue
+│   │   │       ├── ServersManagement.vue
+│   │   │       ├── WebhooksManagement.vue
+│   │   │       ├── AnalyticsPage.vue
+│   │   │       ├── AuditLogPage.vue
+│   │   │       └── SystemSettings.vue
+│   │   │
+│   │   ├── router/
+│   │   │   ├── index.ts               # Vue Router config principal
+│   │   │   ├── routes.ts              # Definición de rutas
+│   │   │   ├── guards.ts              # Route guards
+│   │   │   └── middlewares.ts         # Middlewares de routing
+│   │   │
+│   │   ├── stores/                    # Pinia stores
+│   │   │   ├── index.ts               # Root store
+│   │   │   ├── auth.ts                # Estado de autenticación
+│   │   │   ├── profile.ts             # Perfil actual seleccionado
+│   │   │   ├── server.ts              # Servidor Jellyfin detectado
+│   │   │   ├── content.ts             # Contenido de Jellyfin
+│   │   │   ├── player.ts              # Estado del reproductor
+│   │   │   ├── ads.ts                 # Estado de publicidad
+│   │   │   ├── account.ts             # Estado de cuenta
+│   │   │   ├── admin.ts               # Estado admin
+│   │   │   └── ui.ts                  # Estado de UI (modals, toasts, etc)
+│   │   │
+│   │   ├── services/                  # Servicios de API
+│   │   │   ├── api.ts                 # Axios instance configurado
+│   │   │   ├── auth.service.ts
+│   │   │   ├── account.service.ts
+│   │   │   ├── profile.service.ts
+│   │   │   ├── jellyfin.service.ts    # Proxy a Jellyfin API
+│   │   │   ├── server.service.ts      # Detección de servidor
+│   │   │   ├── ad.service.ts
+│   │   │   ├── webhook.service.ts
+│   │   │   ├── payment.service.ts
+│   │   │   ├── stats.service.ts
+│   │   │   └── admin.service.ts
+│   │   │
+│   │   ├── utils/                     # Utilidades
+│   │   │   ├── dateFormatter.ts
+│   │   │   ├── timeFormatter.ts
+│   │   │   ├── validators.ts
+│   │   │   ├── storage.ts             # localStorage/sessionStorage wrapper
+│   │   │   ├── constants.ts
+│   │   │   ├── config.ts
+│   │   │   ├── adCalculator.ts        # Cálculo de posiciones de ads
+│   │   │   ├── deepLink.ts            # Generador de deep links
+│   │   │   ├── deviceDetection.ts     # Detección de dispositivo
+│   │   │   ├── networkUtils.ts
+│   │   │   └── errorHandler.ts
+│   │   │
+│   │   ├── types/                     # TypeScript types & interfaces
+│   │   │   ├── index.ts
+│   │   │   ├── auth.types.ts
+│   │   │   ├── account.types.ts
+│   │   │   ├── profile.types.ts
+│   │   │   ├── jellyfin.types.ts
+│   │   │   ├── server.types.ts
+│   │   │   ├── ad.types.ts
+│   │   │   ├── webhook.types.ts
+│   │   │   ├── payment.types.ts
+│   │   │   ├── stats.types.ts
+│   │   │   └── api.types.ts
+│   │   │
+│   │   ├── composables/               # Vue composables (reusable logic)
+│   │   │   ├── useAuth.ts
+│   │   │   ├── useProfile.ts
+│   │   │   ├── useJellyfin.ts
+│   │   │   ├── useAds.ts
+│   │   │   ├── useDeepLink.ts
+│   │   │   ├── useDeviceDetection.ts
+│   │   │   ├── usePlayer.ts
+│   │   │   ├── useToast.ts
+│   │   │   ├── useModal.ts
+│   │   │   └── useLocalStorage.ts
+│   │   │
+│   │   ├── directives/                # Vue directives personalizadas
+│   │   │   ├── index.ts
+│   │   │   ├── vClickOutside.ts
+│   │   │   ├── vIntersect.ts
+│   │   │   └── vLazyLoad.ts
+│   │   │
+│   │   ├── plugins/                   # Plugins de Vue
+│   │   │   ├── index.ts
+│   │   │   ├── axios.ts
+│   │   │   └── toast.ts
+│   │   │
+│   │   ├── App.vue                    # Componente raíz
+│   │   └── main.ts                    # Entry point
+│   │
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   ├── postcss.config.js
+│   ├── .env.example
+│   ├── .env.development
+│   ├── .env.production
+│   └── .gitignore
+│
+├── backend/                           # Node.js + Express API
+│   ├── src/
+│   │   │
+│   │   ├── config/                    # Configuraciones
+│   │   │   ├── index.ts
+│   │   │   ├── database.ts            # Prisma config
+│   │   │   ├── env.ts                 # Variables de entorno
+│   │   │   ├── cors.ts                # CORS config
+│   │   │   ├── jwt.ts                 # JWT config
+│   │   │   ├── redis.ts               # Redis config
+│   │   │   ├── email.ts               # Email/SMTP config
+│   │   │   ├── payment.ts             # Stripe/MercadoPago config
+│   │   │   └── servers.ts             # Jellyfin servers config
+│   │   │
+│   │   ├── controllers/               # Controladores de rutas
+│   │   │   ├── auth.controller.ts
+│   │   │   ├── account.controller.ts
+│   │   │   ├── profile.controller.ts
+│   │   │   ├── jellyfin.controller.ts
+│   │   │   ├── server.controller.ts
+│   │   │   ├── ad.controller.ts
+│   │   │   ├── webhook.controller.ts
+│   │   │   ├── payment.controller.ts
+│   │   │   ├── stats.controller.ts
+│   │   │   └── admin.controller.ts
+│   │   │
+│   │   ├── services/                  # Lógica de negocio
+│   │   │   ├── auth.service.ts
+│   │   │   ├── account.service.ts
+│   │   │   ├── profile.service.ts
+│   │   │   ├── jellyfin.service.ts    # Integración Jellyfin API
+│   │   │   ├── jellyfin-api.service.ts # Wrapper de API de Jellyfin
+│   │   │   ├── server-detection.service.ts
+│   │   │   ├── ad.service.ts
+│   │   │   ├── webhook.service.ts
+│   │   │   ├── webhook-delivery.service.ts
+│   │   │   ├── email.service.ts       # Nodemailer
+│   │   │   ├── payment.service.ts     # Stripe/MercadoPago
+│   │   │   ├── stripe.service.ts
+│   │   │   ├── mercadopago.service.ts
+│   │   │   ├── suspension.service.ts  # Lógica de suspensión
+│   │   │   ├── analytics.service.ts
+│   │   │   └── redis.service.ts       # Cache service
+│   │   │
+│   │   ├── routes/                    # Definición de rutas
+│   │   │   ├── index.ts               # Router principal
+│   │   │   ├── auth.routes.ts
+│   │   │   ├── account.routes.ts
+│   │   │   ├── profile.routes.ts
+│   │   │   ├── jellyfin.routes.ts
+│   │   │   ├── server.routes.ts
+│   │   │   ├── ad.routes.ts
+│   │   │   ├── webhook.routes.ts
+│   │   │   ├── payment.routes.ts
+│   │   │   ├── stats.routes.ts
+│   │   │   └── admin.routes.ts
+│   │   │
+│   │   ├── middlewares/
+│   │   │   ├── auth.middleware.ts     # Verificar JWT
+│   │   │   ├── admin.middleware.ts    # Verificar rol admin
+│   │   │   ├── rateLimit.middleware.ts
+│   │   │   ├── validate.middleware.ts # Validación Zod
+│   │   │   ├── error.middleware.ts    # Error handler global
+│   │   │   ├── logger.middleware.ts   # Request logging
+│   │   │   ├── cors.middleware.ts
+│   │   │   └── upload.middleware.ts   # File upload (Multer)
+│   │   │
+│   │   ├── validators/                # Schemas de validación (Zod)
+│   │   │   ├── auth.validator.ts
+│   │   │   ├── account.validator.ts
+│   │   │   ├── profile.validator.ts
+│   │   │   ├── ad.validator.ts
+│   │   │   ├── webhook.validator.ts
+│   │   │   ├── payment.validator.ts
+│   │   │   └── admin.validator.ts
+│   │   │
+│   │   ├── utils/
+│   │   │   ├── jwt.util.ts
+│   │   │   ├── bcrypt.util.ts
+│   │   │   ├── network.util.ts        # Detección de red (CIDR)
+│   │   │   ├── ping.util.ts           # Latency test
+│   │   │   ├── logger.util.ts         # Winston logger
+│   │   │   ├── email-templates.util.ts
+│   │   │   ├── file-upload.util.ts    # Multer helper
+│   │   │   ├── response.util.ts       # Standardized API responses
+│   │   │   ├── error.util.ts          # Error classes
+│   │   │   └── helpers.util.ts
+│   │   │
+│   │   ├── types/
+│   │   │   ├── express.d.ts           # Extend Express types
+│   │   │   ├── index.d.ts
+│   │   │   ├── account.types.ts
+│   │   │   ├── profile.types.ts
+│   │   │   ├── jellyfin.types.ts
+│   │   │   ├── webhook.types.ts
+│   │   │   ├── payment.types.ts
+│   │   │   └── api.types.ts
+│   │   │
+│   │   ├── jobs/                      # Cron jobs (node-cron)
+│   │   │   ├── index.ts               # Job scheduler
+│   │   │   ├── suspend-expired.job.ts # Suspender demos expirados
+│   │   │   ├── cleanup.job.ts         # Limpiar datos antiguos
+│   │   │   ├── analytics.job.ts       # Agregación de analytics
+│   │   │   └── health-check.job.ts    # Health check de servidores
+│   │   │
+│   │   ├── templates/                 # Email templates
+│   │   │   ├── welcome.html
+│   │   │   ├── password-reset.html
+│   │   │   ├── account-suspended.html
+│   │   │   ├── account-reactivated.html
+│   │   │   ├── demo-expired.html
+│   │   │   ├── payment-failed.html
+│   │   │   └── payment-success.html
+│   │   │
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma          # Database schema
+│   │   │   ├── migrations/            # Database migrations
+│   │   │   │   └── (auto-generated)
+│   │   │   └── seed.ts                # Datos iniciales (seed)
+│   │   │
+│   │   ├── public/                    # Archivos estáticos servidos
+│   │   │   └── uploads/               # Archivos subidos temporalmente
+│   │   │
+│   │   ├── app.ts                     # Express app setup
+│   │   └── server.ts                  # Entry point (HTTP server)
+│   │
+│   ├── tests/                         # Tests
+│   │   ├── unit/
+│   │   │   ├── services/
+│   │   │   └── utils/
+│   │   ├── integration/
+│   │   │   └── api/
+│   │   └── e2e/
+│   │
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── tsconfig.json
+│   ├── .env.example
+│   ├── .env.development
+│   ├── .env.production
+│   ├── .gitignore
+│   ├── jest.config.js                 # Jest config para tests
+│   └── ecosystem.config.js            # PM2 config
+│
+├── nginx/                             # (OPCIONAL - NO SE USA CON CLOUDFLARE TUNNEL)
+│   ├── nginx.conf
+│   └── sites-available/
+│       └── stream.serviciosqbit.net.conf
+│
+├── cloudflare/                        # Configuración de Cloudflare Tunnel
+│   ├── config.yml
+│   └── credentials.json.example
+│
+├── docker/                            # Docker configs
+│   ├── Dockerfile.frontend
+│   ├── Dockerfile.backend
+│   ├── Dockerfile.dev                 # Para desarrollo
+│   └── .dockerignore
+│
+├── scripts/                           # Scripts de utilidad
+│   ├── deploy.sh
+│   ├── backup-db.sh
+│   ├── restore-db.sh
+│   ├── setup-ssl.sh
+│   ├── migrate-db.sh
+│   ├── seed-db.sh
+│   └── health-check.sh
+│
+├── docs/                              # Documentación
+│   ├── API.md                         # Documentación de API (Swagger export)
+│   ├── SETUP.md                       # Guía de instalación
+│   ├── DEPLOYMENT.md                  # Guía de despliegue
+│   ├── WEBHOOKS.md                    # Documentación de webhooks
+│   ├── DEVELOPMENT.md                 # Guía de desarrollo
+│   └── ARCHITECTURE.md                # Arquitectura del sistema
+│
+├── .github/                           # GitHub Actions (opcional)
+│   └── workflows/
+│       ├── ci.yml
+│       └── deploy.yml
+│
+└── docker-compose.yml                 # Orquestación de contenedores
+```
+
+## 📁 ARCHIVOS RAÍZ IMPORTANTES
+
+### `.gitignore`
+```gitignore
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.production
+.env.development
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database
+*.db
+*.sqlite
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Docker
+docker-compose.override.yml
+
+# Prisma
+prisma/dev.db
+```
+
+### `docker-compose.yml`
+```yaml
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://backend:3000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/streamqbit
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=development
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./jellyfin-advertising:/jellyfin/advertising
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=streamqbit
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Cloudflare Tunnel (opcional si se ejecuta como servicio)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflare:/etc/cloudflared
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+### `.env.example` (Backend)
+```env
+# Database
+DATABASE_URL=postgresql://postgres:password@localhost:5432/streamqbit
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# JWT
+JWT_SECRET=your-secret-key-here-change-in-production
+JWT_REFRESH_SECRET=your-refresh-secret-key-here
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Server
+NODE_ENV=development
+PORT=3000
+
+# CORS
+CORS_ORIGIN=http://localhost:5173,https://stream.serviciosqbit.net
+
+# Email (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=StreamQbit <noreply@serviciosqbit.net>
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# MercadoPago
+MERCADOPAGO_ACCESS_TOKEN=APP_USR-...
+MERCADOPAGO_PUBLIC_KEY=APP_USR-...
+
+# J
