@@ -1,0 +1,1209 @@
+{
+  "project_name": "StreamQbit - Jellyfin Custom Platform",
+  "version": "1.0.0",
+  "description": "Plataforma web personalizada para Jellyfin con gestión de múltiples perfiles, publicidad opcional, detección inteligente de servidor y compatibilidad total con apps nativas. Sin necesidad de Nginx, usando Cloudflare Tunnel.",
+  
+  "infrastructure": {
+    "tunnel": "Cloudflare Tunnel",
+    "no_nginx": true,
+    "ssl": {
+      "public_domain": "https://stream.serviciosqbit.net",
+      "internal_servers": "HTTP only (no SSL)",
+      "note": "Solo el dominio público tiene HTTPS via Cloudflare"
+    },
+    "deployment": "Docker Compose"
+  },
+
+  "technical_stack": {
+    "frontend": {
+      "framework": "Vue 3",
+      "composition_api": true,
+      "typescript": true,
+      "build_tool": "Vite",
+      "routing": "Vue Router 4",
+      "state_management": "Pinia",
+      "styling": "Tailwind CSS",
+      "animations": "GSAP",
+      "http_client": "Axios",
+      "video_player": "Jellyfin Web Player (integrado) + Video.js para ads",
+      "icons": "Heroicons"
+    },
+    
+    "backend": {
+      "runtime": "Node.js 18+ LTS",
+      "framework": "Express.js + TypeScript",
+      "orm": "Prisma (PostgreSQL/MySQL)",
+      "authentication": "JWT (jsonwebtoken) + bcrypt",
+      "validation": "Zod",
+      "api_docs": "Swagger/OpenAPI",
+      "rate_limiting": "express-rate-limit",
+      "cors": "cors middleware",
+      "email": "Nodemailer",
+      "file_upload": "Multer",
+      "cron_jobs": "node-cron",
+      "logger": "Winston"
+    },
+    
+    "database": {
+      "primary": "PostgreSQL 15+",
+      "alternative": "MySQL 8.0+",
+      "note": "Prisma permite cambiar entre ambos fácilmente",
+      "cache": "Redis 7+ (sesiones, cache de API Jellyfin)"
+    },
+    
+    "containerization": {
+      "docker": true,
+      "services": [
+        "frontend (Vue app servida por Express)",
+        "backend (Node.js API)",
+        "postgres (o mysql)",
+        "redis (cache)"
+      ]
+    }
+  },
+
+  "device_detection_and_redirect": {
+    "description": "Detectar dispositivo y redirigir automáticamente a la app nativa de Jellyfin",
+    "logic": {
+      "mobile": {
+        "android": {
+          "action": "Intentar abrir jellyfin://stream.serviciosqbit.net",
+          "fallback": "Redirigir a Google Play Store después de 2 segundos",
+          "play_store_url": "https://play.google.com/store/apps/details?id=org.jellyfin.mobile"
+        },
+        "ios": {
+          "action": "Intentar abrir jellyfin://stream.serviciosqbit.net",
+          "fallback": "Redirigir a App Store después de 2 segundos",
+          "app_store_url": "https://apps.apple.com/app/jellyfin-mobile/id1480192618"
+        }
+      },
+      "desktop": {
+        "action": "Permitir uso de la web normalmente sin redireccionamiento"
+      }
+    },
+    "implementation": "JavaScript en frontend que detecta User-Agent y ejecuta la redirección automáticamente al cargar la página después del login"
+  },
+
+  "server_detection": {
+    "description": "Detectar automáticamente el mejor servidor Jellyfin para cada usuario basado en su ubicación de red",
+    "servers": [
+      {
+        "id": "local",
+        "name": "Servidor Local",
+        "url": "http://10.10.0.111:8096",
+        "network_cidr": "10.10.0.0/24",
+        "priority": 1,
+        "protocol": "http"
+      },
+      {
+        "id": "wisp",
+        "name": "Red WISP",
+        "url": "http://172.16.8.23:8096",
+        "network_cidr": "172.16.0.0/16",
+        "priority": 2,
+        "protocol": "http"
+      },
+      {
+        "id": "isp",
+        "name": "Red ISP",
+        "url": "http://100.10.0.15:8096",
+        "network_cidr": "100.10.0.0/16",
+        "priority": 3,
+        "protocol": "http"
+      },
+      {
+        "id": "public",
+        "name": "Dominio Público",
+        "url": "https://stream.serviciosqbit.net",
+        "network_cidr": null,
+        "priority": 4,
+        "protocol": "https",
+        "is_fallback": true
+      }
+    ],
+    "detection_algorithm": {
+      "step_1": "Backend obtiene IP real del cliente",
+      "step_2": "Comparar IP con rangos CIDR configurados",
+      "step_3": "Si coincide con algún rango, hacer ping/latency test a servidores candidatos",
+      "step_4": "Seleccionar servidor con menor latencia (<100ms preferencia)",
+      "step_5": "Validar conectividad con /System/Info de Jellyfin",
+      "step_6": "Devolver URL del servidor seleccionado al frontend",
+      "fallback": "Si todo falla, usar dominio público HTTPS",
+      "cache": "Guardar resultado en cookie de sesión (1 hora de validez)"
+    },
+    "http_https_handling": {
+      "problem": "Frontend HTTPS no puede hacer fetch a servidores HTTP (Mixed Content)",
+      "solution": "Backend hace la detección y proxy, frontend nunca llama directo a HTTP"
+    }
+  },
+
+  "authentication_and_accounts": {
+    "account_types": [
+      {
+        "type": "wisp",
+        "name": "Cliente WISP",
+        "description": "Cliente que paga internet, obtiene streaming gratis",
+        "billing": "external",
+        "suspension_trigger": "Webhook desde sistema de facturación WISP",
+        "auto_suspend": true,
+        "manual_suspend": true
+      },
+      {
+        "type": "demo",
+        "name": "Cuenta Demo",
+        "description": "Cuenta temporal para prueba",
+        "duration_configurable": true,
+        "duration_examples": "7, 25, 30, 50, 90 días (admin decide)",
+        "billing": "none",
+        "auto_expire": true,
+        "suspension_trigger": "Cron job verifica expiración diaria/horaria"
+      },
+      {
+        "type": "monthly",
+        "name": "Suscripción Mensual",
+        "description": "Pago mensual recurrente",
+        "billing": "stripe_or_mercadopago",
+        "recurring": true,
+        "interval": "month",
+        "grace_period": "3 días después de fallo de pago"
+      },
+      {
+        "type": "weekly",
+        "name": "Suscripción Semanal",
+        "description": "Pago semanal recurrente",
+        "billing": "stripe_or_mercadopago",
+        "recurring": true,
+        "interval": "week",
+        "grace_period": "1 día después de fallo de pago"
+      }
+    ],
+
+    "account_statuses": [
+      "active",
+      "suspended",
+      "cancelled",
+      "pending",
+      "grace_period"
+    ],
+
+    "master_account": {
+      "description": "Cuenta padre que contiene múltiples perfiles",
+      "fields": [
+        "id (UUID)",
+        "email (único)",
+        "password_hash (bcrypt)",
+        "plan (basic/premium/demo)",
+        "account_type (wisp/demo/monthly/weekly)",
+        "status (active/suspended/cancelled/pending/grace_period)",
+        "wisp_customer_id (si es WISP)",
+        "demo_expires_at (si es demo)",
+        "demo_duration_days (configurable por admin)",
+        "stripe_customer_id",
+        "created_at",
+        "updated_at",
+        "last_login",
+        "suspended_at",
+        "suspension_reason"
+      ]
+    },
+
+    "profiles": {
+      "description": "Sub-cuentas vinculadas a cuenta maestra. Cada perfil = 1 cuenta real en Jellyfin",
+      "limits_by_plan": {
+        "basic": "3-4 perfiles",
+        "premium": "8 perfiles"
+      },
+      "fields": [
+        "id (UUID)",
+        "user_id (FK a cuenta maestra)",
+        "jellyfin_user_id (ID de la cuenta en Jellyfin - ÚNICO)",
+        "name",
+        "avatar",
+        "pin (opcional para control parental)",
+        "age_restriction",
+        "language (preferencia)",
+        "subtitle_language",
+        "quality_preference",
+        "is_primary (perfil principal)",
+        "created_at",
+        "updated_at"
+      ],
+      "synchronization": "Bidireccional con Jellyfin API"
+    },
+
+    "password_management": {
+      "change_password_flow": [
+        "Usuario cambia contraseña en web",
+        "Backend actualiza hash en DB",
+        "Backend llama a Jellyfin API /Users/{userId}/Password para CADA perfil vinculado",
+        "Invalida todos los JWT tokens existentes",
+        "Envía email de confirmación",
+        "Dispara webhook 'password.changed'"
+      ]
+    },
+
+    "registration": {
+      "public_form": false,
+      "methods": [
+        "Dashboard Admin (formulario web)",
+        "API REST (/api/admin/accounts)"
+      ],
+      "creation_flow": [
+        "Admin ingresa datos de nueva cuenta",
+        "Backend crea cuenta en DB",
+        "Backend crea X perfiles en Jellyfin via API",
+        "Backend vincula jellyfin_user_id en tabla profiles",
+        "Genera contraseña temporal",
+        "Envía email de bienvenida con credenciales",
+        "Si es demo, agenda cron job de suspensión",
+        "Dispara webhook 'account.created'"
+      ]
+    }
+  },
+
+  "suspension_system": {
+    "wisp_customers": {
+      "trigger": "Webhook desde sistema de facturación WISP",
+      "webhook_events": [
+        "service.suspended (no pago internet)",
+        "service.activated (pagó, reactivar)"
+      ],
+      "flow_suspension": [
+        "Recibir webhook service.suspended",
+        "Buscar cuenta por wisp_customer_id",
+        "Actualizar status a 'suspended'",
+        "Deshabilitar todos los perfiles en Jellyfin",
+        "Enviar email de notificación",
+        "Registrar en audit log"
+      ],
+      "flow_reactivation": [
+        "Recibir webhook service.activated",
+        "Buscar cuenta por wisp_customer_id",
+        "Actualizar status a 'active'",
+        "Habilitar todos los perfiles en Jellyfin",
+        "Enviar email de reactivación"
+      ],
+      "manual_override": "Admin puede suspender/reactivar manualmente desde dashboard"
+    },
+
+    "demo_accounts": {
+      "trigger": "Cron job que verifica expiración",
+      "frequency": "Cada hora o cada día",
+      "flow": [
+        "Buscar cuentas con plan='demo' y expires_at <= NOW()",
+        "Para cada cuenta expirada:",
+        "- Actualizar status a 'suspended'",
+        "- Deshabilitar perfiles en Jellyfin",
+        "- Enviar email de expiración con opción de upgrade",
+        "- Registrar en audit log"
+      ],
+      "upgrade_option": "Email incluye link para upgrade a plan de pago"
+    },
+
+    "subscription_accounts": {
+      "payment_failed": {
+        "trigger": "Webhook de Stripe/MercadoPago",
+        "flow": [
+          "Actualizar payment_status a 'past_due'",
+          "Enviar email de advertencia",
+          "Iniciar periodo de gracia (3 días mensual, 1 día semanal)",
+          "Agendar suspensión automática si no paga"
+        ]
+      },
+      "payment_success": {
+        "trigger": "Webhook de Stripe/MercadoPago",
+        "flow": [
+          "Actualizar payment_status a 'active'",
+          "Cancelar suspensión programada",
+          "Extender current_period_end"
+        ]
+      },
+      "grace_period_expired": {
+        "flow": [
+          "Suspender cuenta",
+          "Deshabilitar perfiles en Jellyfin",
+          "Enviar email final"
+        ]
+      }
+    },
+
+    "manual_suspension": {
+      "who": "Solo administradores",
+      "interface": "Dashboard admin",
+      "reasons": [
+        "Violación de términos",
+        "Solicitud del usuario",
+        "Mantenimiento",
+        "Otro (especificar)"
+      ]
+    }
+  },
+
+  "advertising_system": {
+    "enabled_for": "Usuarios con plan básico",
+    "disabled_for": "Usuarios premium",
+    
+    "ad_types": [
+      {
+        "type": "preroll",
+        "description": "Anuncio antes del contenido",
+        "duration": "15-30 segundos",
+        "skippable_premium": true,
+        "skip_time": 5
+      },
+      {
+        "type": "midroll",
+        "description": "Anuncios durante el contenido",
+        "insertion_formula": {
+          "description": "Fórmula para calcular posiciones de ads durante video",
+          "variables": {
+            "duration": "Duración total del video en minutos",
+            "numAds": "Número de anuncios a insertar (default: 3)",
+            "startOffset": "10% de la duración",
+            "endOffset": "10% de la duración"
+          },
+          "calculation": [
+            "startOffset = duration * 0.10",
+            "endOffset = duration * 0.10",
+            "usableTime = duration - startOffset - endOffset",
+            "interval = usableTime / numAds",
+            "adPositions[0] = startOffset",
+            "adPositions[1] = startOffset + interval",
+            "adPositions[2] = startOffset + (interval * 2)",
+            "... y así sucesivamente"
+          ],
+          "example": {
+            "duration_minutes": 120,
+            "num_ads": 3,
+            "result": {
+              "startOffset": 12,
+              "endOffset": 12,
+              "usableTime": 96,
+              "interval": 32,
+              "adPositions": [12, 44, 76]
+            }
+          }
+        }
+      },
+      {
+        "type": "pauseroll",
+        "description": "Banner estático cuando el usuario pausa",
+        "format": "Imagen (JPG/PNG)",
+        "clickable": true,
+        "tracking": "Clicks e impresiones"
+      }
+    ],
+
+    "ad_storage": {
+      "location": "/jellyfin/advertising/",
+      "structure": {
+        "videos": {
+          "preroll": "Videos de pre-roll",
+          "midroll": "Videos de mid-roll"
+        },
+        "images": {
+          "pauseroll": "Imágenes de pause-roll"
+        }
+      }
+    },
+
+    "ad_selection": {
+      "method": "Weighted random (basado en peso)",
+      "fields": [
+        "weight (1-10, mayor peso = más probabilidad)",
+        "start_date (fecha inicio de campaña)",
+        "end_date (fecha fin de campaña)",
+        "active (boolean)"
+      ],
+      "fallback": "Si no hay ads activos, usar ad por defecto"
+    },
+
+    "ad_tracking": {
+      "events": [
+        "impression (ad cargado)",
+        "started (ad empezó a reproducirse)",
+        "completed (ad visto completamente)",
+        "skipped (usuario saltó el ad)",
+        "clicked (usuario hizo click en pause ad)"
+      ],
+      "storage": "Tabla ad_views en DB",
+      "analytics": "Dashboard con métricas de rendimiento"
+    },
+
+    "player_implementation": {
+      "approach": "Wrapper personalizado sobre Jellyfin Web Player",
+      "components": [
+        "AdEnabledPlayer.vue (componente principal)",
+        "AdOverlay.vue (overlay de video de ad)",
+        "PauseAdBanner.vue (banner en pausa)",
+        "PlayerControls.vue (controles personalizados)"
+      ],
+      "flow": [
+        "1. Usuario hace click en 'Reproducir'",
+        "2. Si es plan básico, cargar pre-roll ads",
+        "3. Reproducir pre-roll(s)",
+        "4. Iniciar contenido principal de Jellyfin",
+        "5. Calcular posiciones de mid-rolls",
+        "6. Insertar mid-rolls en posiciones calculadas",
+        "7. Si usuario pausa, mostrar pause ad banner",
+        "8. Trackear todas las interacciones"
+      ],
+      "video_quality": {
+        "content": "1080p (todos los videos del servidor)",
+        "ads": "Variable (480p, 720p, 1080p) - se reproduce en su calidad nativa sin transcodificar"
+      }
+    },
+
+    "ad_blocker_detection": {
+      "method": "Honeypot invisible + detección de scripts bloqueados",
+      "action_if_detected": [
+        "Pausar reproducción",
+        "Mostrar mensaje: 'Los anuncios sostienen este servicio'",
+        "Ofrecer botón 'Actualizar a Premium'"
+      ]
+    },
+
+    "upload_interface": {
+      "location": "Dashboard Admin > Publicidad > Subir Anuncio",
+      "fields": [
+        "Archivo (video MP4 o imagen JPG/PNG)",
+        "Tipo (preroll/midroll/pauseroll)",
+        "Nombre de campaña",
+        "Duración (auto-detectada para videos)",
+        "Peso (1-10)",
+        "Fecha inicio",
+        "Fecha fin",
+        "URL de click (solo para pauseroll)"
+      ],
+      "processing": [
+        "Validar formato y tamaño",
+        "Guardar en /jellyfin/advertising/",
+        "Crear registro en DB",
+        "Generar thumbnail (para videos)"
+      ]
+    }
+  },
+
+  "jellyfin_integration": {
+    "api_usage": "Jellyfin REST API para todas las operaciones",
+    "endpoints_used": [
+      "/System/Info (health check)",
+      "/System/Ping (latency test)",
+      "/Users (gestión de usuarios)",
+      "/Users/{userId}/Password (cambiar contraseña)",
+      "/Users/{userId}/Policy (actualizar permisos)",
+      "/Items (obtener biblioteca)",
+      "/Search/Hints (búsqueda)",
+      "/Playback/* (info de reproducción)",
+      "/Sessions (sesiones activas)"
+    ],
+
+    "user_creation_flow": [
+      "Backend crea perfil en DB local",
+      "Backend llama a POST /Users en Jellyfin",
+      "Jellyfin devuelve userId",
+      "Backend guarda jellyfin_user_id en tabla profiles",
+      "Backend configura políticas del usuario (restrictions, etc.)"
+    ],
+
+    "password_sync": {
+      "trigger": "Cambio de contraseña en web",
+      "flow": [
+        "Usuario cambia password en web",
+        "Backend actualiza DB",
+        "Para cada perfil vinculado:",
+        "- Backend llama a POST /Users/{jellyfinUserId}/Password",
+        "- Envía nueva contraseña encriptada"
+      ]
+    },
+
+    "playback_state_sync": {
+      "description": "Sincronizar progreso de visualización entre web y apps nativas",
+      "method": "Jellyfin API maneja esto automáticamente",
+      "endpoints": [
+        "/Sessions/Playing (reportar inicio)",
+        "/Sessions/Playing/Progress (reportar progreso)",
+        "/Sessions/Playing/Stopped (reportar fin)"
+      ]
+    },
+
+    "deep_linking": {
+      "description": "Permitir que web abra contenido en apps nativas",
+      "schema": "jellyfin://SERVER_URL/item/{itemId}",
+      "example": "jellyfin://10.10.0.111:8096/item/abc123",
+      "flow": [
+        "Usuario hace click en 'Reproducir' en móvil",
+        "Frontend detecta móvil",
+        "Frontend genera deep link con servidor detectado",
+        "Frontend ejecuta window.location.href = deepLink",
+        "App Jellyfin se abre y reproduce contenido"
+      ]
+    },
+
+    "chromecast_support": {
+      "description": "Soporte nativo de Chromecast viene con Jellyfin Web Player",
+      "no_additional_work": true,
+      "note": "Solo asegurar no romper el player al envolver con ads"
+    }
+  },
+
+  "public_api": {
+    "description": "API REST para gestión externa de cuentas y obtención de estadísticas",
+    "base_url": "/api",
+    "authentication": "JWT Bearer Token o API Key",
+    
+    "rate_limits": {
+      "anonymous": "10 req/min",
+      "authenticated": "100 req/min",
+      "admin": "1000 req/min"
+    },
+
+    "endpoints": {
+      "auth": [
+        {
+          "method": "POST",
+          "path": "/api/auth/login",
+          "description": "Iniciar sesión",
+          "body": {
+            "email": "string",
+            "password": "string"
+          },
+          "response": {
+            "access_token": "string (15 min)",
+            "refresh_token": "string (7 días)",
+            "user": "object"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/auth/refresh",
+          "description": "Renovar access token"
+        },
+        {
+          "method": "POST",
+          "path": "/api/auth/forgot-password",
+          "description": "Solicitar reset de contraseña",
+          "body": {
+            "email": "string"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/auth/reset-password/:token",
+          "description": "Restablecer contraseña"
+        }
+      ],
+
+      "account": [
+        {
+          "method": "GET",
+          "path": "/api/account/me",
+          "description": "Obtener info de cuenta maestra",
+          "auth": "required"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/account/me",
+          "description": "Actualizar datos de cuenta"
+        },
+        {
+          "method": "POST",
+          "path": "/api/account/change-password",
+          "description": "Cambiar contraseña (actualiza Jellyfin)",
+          "body": {
+            "current_password": "string",
+            "new_password": "string"
+          },
+          "note": "Actualiza contraseña en todos los perfiles de Jellyfin vinculados"
+        },
+        {
+          "method": "GET",
+          "path": "/api/account/subscription",
+          "description": "Estado de subscripción"
+        }
+      ],
+
+      "profiles": [
+        {
+          "method": "GET",
+          "path": "/api/profiles",
+          "description": "Listar perfiles de la cuenta"
+        },
+        {
+          "method": "POST",
+          "path": "/api/profiles",
+          "description": "Crear nuevo perfil (crea cuenta en Jellyfin)",
+          "body": {
+            "name": "string",
+            "avatar": "string (opcional)",
+            "pin": "string (opcional)",
+            "age_restriction": "number"
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/profiles/:id",
+          "description": "Actualizar perfil"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/profiles/:id",
+          "description": "Eliminar perfil (elimina de Jellyfin)"
+        }
+      ],
+
+      "jellyfin_proxy": [
+        {
+          "method": "GET",
+          "path": "/api/jellyfin/detect-server",
+          "description": "Detectar mejor servidor para el cliente",
+          "response": {
+            "server_id": "string",
+            "url": "string",
+            "latency_ms": "number"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/jellyfin/items",
+          "description": "Proxy a biblioteca de Jellyfin"
+        },
+        {
+          "method": "GET",
+          "path": "/api/jellyfin/search",
+          "description": "Proxy a búsqueda"
+        }
+      ],
+
+      "stats": [
+        {
+          "method": "GET",
+          "path": "/api/stats/overview",
+          "description": "Resumen general de la cuenta"
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats/watchtime",
+          "description": "Tiempo de visualización"
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats/ads",
+          "description": "Estadísticas de publicidad (si plan básico)"
+        }
+      ],
+
+      "admin": [
+        {
+          "method": "POST",
+          "path": "/api/admin/accounts",
+          "description": "Crear cuenta (solo admin)",
+          "auth": "admin required",
+          "body": {
+            "email": "string",
+            "plan": "basic|premium|demo",
+            "account_type": "wisp|demo|monthly|weekly",
+            "profiles_count": "number (3, 4 o 8)",
+            "wisp_customer_id": "string (opcional)",
+            "demo_duration_days": "number (opcional)"
+          },
+          "response": {
+            "account_id": "string",
+            "email": "string",
+            "temporary_password": "string",
+            "profiles": "array"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/admin/accounts/:id/suspend",
+          "description": "Suspender cuenta manualmente"
+        },
+        {
+          "method": "POST",
+          "path": "/api/admin/accounts/:id/reactivate",
+          "description": "Reactivar cuenta suspendida"
+        },
+        {
+          "method": "POST",
+          "path": "/api/admin/ads",
+          "description": "Subir anuncio publicitario",
+          "content_type": "multipart/form-data"
+        }
+      ]
+    }
+  },
+
+  "webhook_system": {
+    "description": "Sistema de webhooks para notificar eventos a sistemas externos",
+    "configuration": "Dashboard Admin > Webhooks",
+    
+    "available_events": [
+      "account.created",
+      "account.suspended",
+      "account.reactivated",
+      "account.upgraded",
+      "account.cancelled",
+      "account.payment.success",
+      "account.payment.failed",
+      "profile.created",
+      "profile.deleted",
+      "password.changed",
+      "login.success",
+      "login.failed",
+      "playback.started",
+      "playback.completed",
+      "ad.viewed",
+      "ad.completed",
+      "ad.skipped"
+    ],
+
+    "webhook_config": {
+      "fields": [
+        "url (endpoint destino)",
+        "events (array de eventos suscritos)",
+        "secret (para HMAC signature)",
+        "active (boolean)",
+        "headers (custom headers opcional)"
+      ]
+    },
+
+    "payload_structure": {
+      "event": "string (nombre del evento)",
+      "timestamp": "ISO 8601",
+      "data": "object (datos específicos del evento)",
+      "signature": "HMAC-SHA256 del payload"
+    },
+
+    "payload_example": {
+      "event": "account.created",
+      "timestamp": "2025-11-14T10:30:00Z",
+      "data": {
+        "account_id": "uuid",
+        "email": "user@example.com",
+        "plan": "premium",
+        "profiles_count": 4
+      },
+      "signature": "sha256=abc123..."
+    },
+
+    "delivery": {
+      "method": "POST",
+      "content_type": "application/json",
+      "timeout": "10 seconds",
+      "retries": 3,
+      "retry_backoff": "exponential (1s, 2s, 4s)"
+    },
+
+    "incoming_webhooks": {
+      "wisp_system": {
+        "endpoint": "/api/webhooks/wisp",
+        "events": [
+          "service.suspended",
+          "service.activated"
+        ],
+        "security": "Verificar secret en header"
+      },
+      "stripe": {
+        "endpoint": "/api/webhooks/stripe",
+        "events": [
+          "invoice.payment_succeeded",
+          "invoice.payment_failed",
+          "customer.subscription.deleted"
+        ]
+      },
+      "mercadopago": {
+        "endpoint": "/api/webhooks/mercadopago",
+        "events": [
+          "payment.approved",
+          "payment.rejected"
+        ]
+      }
+    }
+  },
+
+  "ui_ux_design": {
+    "design_style": "Netflix-like interface",
+    "theme": "Dark theme por defecto",
+    "responsive": "Mobile-first approach",
+    
+    "public_pages": [
+      {
+        "route": "/",
+        "name": "Landing Page",
+        "description": "Página de marketing con info de planes",
+        "components": [
+          "Hero section",
+          "Features grid",
+          "Plans comparison",
+          "Footer"
+        ]
+      },
+      {
+        "route": "/login",
+        "name": "Login",
+        "description": "Formulario de inicio de sesión",
+        "special_behavior": "Auto-redirige a app en móviles después de login exitoso"
+      },
+      {
+        "route": "/forgot-password",
+        "name": "Recuperar Contraseña"
+      }
+    ],
+
+    "private_pages": [
+      {
+        "route": "/profiles",
+        "name": "Selector de Perfiles",
+        "description": "Pantalla completa con grid de perfiles disponibles",
+        "shown": "Después de login, antes de acceder al contenido"
+      },
+      {
+        "route": "/browse",
+        "name": "Explorar (Homepage)",
+        "description": "Página principal estilo Netflix",
+        "sections": [
+          "Hero Banner (contenido destacado con trailer autoplay)",
+          "Continuar viendo (si hay progreso guardado)",
+          "Bibliotecas de Jellyfin como filas (Películas, Series, Animes, etc.)",
+          "Filas por género (Acción, Comedia, Drama, Terror, Sci-Fi, etc.)",
+          "Mi Lista (favoritos del perfil)",
+          "Tendencias ahora"
+        ]
+      },
+      {
+        "route": "/watch/:id",
+        "name": "Reproductor",
+        "description": "Página del player con ads si es plan básico",
+        "note": "En móvil, redirige a app Jellyfin con deep link"
+      },
+      {
+        "route": "/search",
+        "name": "Búsqueda",
+        "description": "Búsqueda en tiempo real de contenido"
+      },
+      {
+        "route": "/library/:id",
+        "name": "Biblioteca Completa",
+        "description": "Ver todos los items de una biblioteca específica (Películas, Series, etc.)"
+      },
+      {
+        "route": "/genre/:name",
+        "name": "Género",
+        "description": "Contenido filtrado por género"
+      },
+      {
+        "route": "/account",
+        "name": "Mi Cuenta",
+        "description": "Gestión de cuenta, perfiles, subscripción"
+      }
+    ],
+
+    "admin_pages": [
+      {
+        "route": "/admin",
+        "name": "Dashboard",
+        "sections": [
+          "Stats cards (usuarios, ingresos, horas streaming, ads)",
+          "Actividad reciente (tabla)",
+          "Gráfico de tendencias"
+        ]
+      },
+      {
+        "route": "/admin/accounts",
+        "name": "Gestión de Cuentas",
+        "features": [
+          "Tabla de cuentas con filtros",
+          "Botón 'Crear Cuenta'",
+          "Acciones: Editar, Suspender, Reactivar, Ver detalles"
+        ]
+      },
+      {
+        "route": "/admin/ads",
+        "name": "Gestión de Publicidad",
+        "features": [
+          "Subir anuncios",
+          "Tabla de anuncios con stats",
+          "Gráficos de rendimiento"
+        ]
+      },
+      {
+        "route": "/admin/servers",
+        "name": "Configuración de Servidores",
+        "features": [
+          "Listar servidores Jellyfin",
+          "Editar URLs y prioridades",
+          "Health check manual"
+        ]
+      },
+      {
+        "route": "/admin/webhooks",
+        "name": "Webhooks",
+        "features": [
+          "Configurar webhooks salientes",
+          "Ver logs de entregas"
+        ]
+      }
+    ],
+
+    "components": {
+      "common": [
+        "Button.vue",
+        "Input.vue",
+        "Modal.vue",
+        "Toast.vue (notificaciones)",
+        "Loading.vue",
+        "Dropdown.vue"
+      ],
+      "layout": [
+        "Navbar.vue (con búsqueda, perfil, notificaciones)",
+        "Sidebar.vue (solo admin)",
+        "Footer.vue"
+      ],
+      "content": [
+        "HeroBanner.vue (banner destacado)",
+        "ContentRow.vue (fila horizontal de items)",
+        "ItemCard.vue (tarjeta de película/serie)",
+        "ItemDetail.vue (modal con info detallada)",
+        "SearchResults.vue"
+      ],
+      "player": [
+        "AdEnabledPlayer.vue (player principal)",
+        "AdOverlay.vue (overlay de ad)",
+        "PauseAdBanner.vue (banner en pausa)"
+      ],
+      "admin": [
+        "Dashboard.vue",
+        "UserTable.vue",
+        "CreateAccountForm.vue",
+        "AdUploader.vue",
+        "AdManager.vue",
+        "AnalyticsChart.vue"
+      ]
+    },
+
+    "jellyfin_libraries_display": {
+      "description": "Mostrar cada biblioteca de Jellyfin como una fila en /browse",
+      "libraries": [
+        "Películas",
+        "Series",
+        "Películas y Series (mixta)",
+        "Animes"
+      ],
+      "genres": [
+        "Acción",
+        "Comedia",
+        "Drama",
+        "Terror",
+        "Sci-Fi",
+        "Romance",
+        "Thriller",
+        "Documental",
+        "Animación",
+        "Aventura"
+      ],
+      "note": "Géneros se obtienen dinámicamente de Jellyfin API"
+    }
+  },
+
+  "database_schema": {
+    "note": "Ver archivo prisma/schema.prisma completo en estructura de archivos",
+    "main_tables": [
+      "User (cuenta maestra)",
+      "Profile (sub-cuentas vinculadas a Jellyfin)",
+      "Server (servidores Jellyfin configurados)",
+      "Ad (anuncios publicitarios)",
+      "AdView (tracking de visualizaciones de ads)",
+      "WatchHistory (historial de reproducción)",
+      "Subscription (subscripciones de pago)",
+      "PaymentMethod (métodos de pago)",
+      "Webhook (webhooks configurados)",
+      "WebhookDelivery (logs de entregas)",
+      "ApiKey (API keys para integraciones)",
+      "AuditLog (log de auditoría)"
+    ]
+  },
+
+  "deployment": {
+    "docker_compose": true,
+    "services": [
+      {
+        "name": "frontend",
+        "description": "Vue app compilada servida por Express",
+        "port": 3000,
+        "environment": [
+          "VITE_API_URL",
+          "VITE_JELLYFIN_PUBLIC_URL"
+        ]
+      },
+      {
+        "name": "backend",
+        "description": "Node.js API",
+        "port": 3000,
+        "environment": [
+          "DATABASE_URL",
+          "REDIS_URL",
+          "JWT_SECRET",
+          "JWT_REFRESH_SECRET",
+          "SMTP_HOST",
+          "SMTP_USER",
+          "SMTP_PASS",
+          "STRIPE_SECRET_KEY",
+          "CLOUDFLARE_TUNNEL_TOKEN"
+        ]
+      },
+      {
+        "name": "postgres",
+        "image": "postgres:15-alpine",
+        "port": 5432,
+        "volumes": [
+          "./data/postgres:/var/lib/postgresql/data"
+        ]
+      },
+      {
+        "name": "redis",
+        "image": "redis:7-alpine",
+        "port": 6379
+      }
+    ],
+
+    "cloudflare_tunnel": {
+      "description": "Cloudflare Tunnel expone backend al público sin necesidad de Nginx",
+      "setup": [
+        "Instalar cloudflared",
+        "cloudflare tunnel create streamqbit",
+        "Configurar tunnel en config.yml",
+        "cloudflare tunnel route dns streamqbit stream.serviciosqbit.net",
+        "cloudflare tunnel run streamqbit"
+      ],
+      "config_example": {
+        "tunnel": "UUID",
+        "credentials-file": "/etc/cloudflared/UUID.json",
+        "ingress": [
+          {
+            "hostname": "stream.serviciosqbit.net",
+            "service": "http://localhost:3000"
+          }
+        ]
+      }
+    },
+
+    "process_manager": "PM2 para Node.js",
+    "backups": {
+      "database": "pg_dump diario",
+      "uploads": "Rsync a storage externo",
+      "retention": "7 días diarios, 4 semanas, 12 meses"
+    },
+
+    "monitoring": {
+      "logs": "Winston (backend) + console (frontend)",
+      "errors": "Sentry (opcional)",
+      "uptime": "Uptime Robot o similar"
+    }
+  },
+
+  "development_workflow": {
+    "phases": [
+      {
+        "phase": 1,
+        "name": "Setup e Infraestructura",
+        "duration": "1-2 semanas",
+        "tasks": [
+          "Setup proyecto Vue + Node",
+          "Configurar Prisma + PostgreSQL",
+          "Configurar Cloudflare Tunnel",
+          "Docker Compose básico",
+          "Autenticación JWT",
+          "Integración básica con Jellyfin API"
+        ]
+      },
+      {
+        "phase": 2,
+        "name": "Core Features",
+        "duration": "3-4 semanas",
+        "tasks": [
+          "Sistema de cuentas maestras y perfiles",
+          "Detección de servidor automática",
+          "CRUD de perfiles vinculado a Jellyfin",
+          "UI principal (landing, login, browse)",
+          "Sincronización de contraseñas",
+          "Deep linking para apps móviles"
+        ]
+      },
+      {
+        "phase": 3,
+        "name": "Sistema de Publicidad",
+        "duration": "2-3 semanas",
+        "tasks": [
+          "Player con inyección de ads",
+          "Upload y gestión de anuncios",
+          "Cálculo de posiciones de mid-rolls",
+          "Tracking de visualizaciones",
+          "Ad-blocker detection"
+        ]
+      },
+      {
+        "phase": 4,
+        "name": "Subscripciones y Pagos",
+        "duration": "2-3 semanas",
+        "tasks": [
+          "Integración con Stripe/MercadoPago",
+          "Sistema de suspensión automática",
+          "Webhooks WISP",
+          "Cron jobs para demos",
+          "Email notifications"
+        ]
+      },
+      {
+        "phase": 5,
+        "name": "Admin Panel y API",
+        "duration": "2 semanas",
+        "tasks": [
+          "Dashboard completo",
+          "Gestión de cuentas",
+          "Gestión de ads",
+          "Analytics y stats",
+          "API pública documentada",
+          "Sistema de webhooks salientes"
+        ]
+      },
+      {
+        "phase": 6,
+        "name": "Testing y Deploy",
+        "duration": "1-2 semanas",
+        "tasks": [
+          "Testing funcional",
+          "Testing de rendimiento",
+          "Optimizaciones",
+          "Deploy a producción",
+          "Documentación final",
+          "Monitoring y ajustes"
+        ]
+      }
+    ],
+
+    "total_estimated_duration": "11-15 semanas"
+  },
+
+  "success_criteria": [
+    "Detección de servidor correcta en 95%+ de casos",
+    "Reproducción sin buffering en conexiones >5 Mbps",
+    "Ads reproducidos exitosamente en 98%+ de intentos",
+    "Tiempo de carga inicial <3 segundos",
+    "Responsive perfecto en móviles, tablets, desktop",
+    "Zero downtime durante operación normal",
+    "Sincronización bidireccional con Jellyfin 100% funcional",
+    "Deep linking funciona en 95%+ de dispositivos móviles"
+  ],
+
+  "notes_and_considerations": [
+    "El uso de Cloudflare Tunnel elimina la necesidad de Nginx",
+    "La detección de servidor se hace en backend para evitar mixed content",
+    "Cada perfil es una cuenta real de Jellyfin, no solo metadata",
+    "El player de Jellyfin se envuelve pero no se modifica para preservar Chromecast",
+    "La web es principalmente para gestión, el consumo ideal es via apps nativas",
+    "PostgreSQL es recomendado sobre MySQL por mejor soporte de tipos JSON y relaciones",
+    "La fórmula de ads mid-roll es configurable por admin",
+    "Sistema WISP requiere webhook desde sistema de facturación externo"
+  ]
+}
