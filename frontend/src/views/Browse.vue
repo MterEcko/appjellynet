@@ -1,5 +1,14 @@
 <template>
   <div class="min-h-screen bg-dark">
+    <!-- Item Details Modal -->
+    <ItemDetailsModal
+      v-if="selectedItem"
+      :item="selectedItem"
+      @close="selectedItem = null"
+      @play="playItem"
+      @item-selected="showItemInfo"
+    />
+
     <!-- Navigation Bar -->
     <nav class="fixed top-0 w-full z-50 transition-all duration-300" :class="{ 'bg-dark': scrolled, 'bg-gradient-to-b from-black/80 to-transparent': !scrolled }">
       <div class="flex items-center justify-between px-8 py-4">
@@ -112,6 +121,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth';
 import HeroBanner from '@/components/HeroBanner.vue';
 import ContentRow from '@/components/ContentRow.vue';
+import ItemDetailsModal from '@/components/ItemDetailsModal.vue';
 import jellyfinService from '@/services/jellyfin';
 
 export default {
@@ -119,6 +129,7 @@ export default {
   components: {
     HeroBanner,
     ContentRow,
+    ItemDetailsModal,
   },
   setup() {
     const router = useRouter();
@@ -127,6 +138,7 @@ export default {
     const scrolled = ref(false);
     const showProfileMenu = ref(false);
     const loading = ref(true);
+    const selectedItem = ref(null);
 
     const serverUrl = ref('');
     const featuredItem = ref(null);
@@ -174,9 +186,16 @@ export default {
       router.push({ name: 'Watch', params: { id: item.Id } });
     };
 
-    const showItemInfo = (item) => {
-      // TODO: Show item details modal
-      console.log('Show info for:', item);
+    const showItemInfo = async (item) => {
+      try {
+        // Load full item details
+        const details = await jellyfinService.getItemDetails(item.Id);
+        selectedItem.value = details;
+      } catch (error) {
+        console.error('Failed to load item details:', error);
+        // Fallback to basic item info
+        selectedItem.value = item;
+      }
     };
 
     const logout = () => {
@@ -197,6 +216,7 @@ export default {
       scrolled,
       showProfileMenu,
       loading,
+      selectedItem,
       serverUrl,
       featuredItem,
       continueWatching,

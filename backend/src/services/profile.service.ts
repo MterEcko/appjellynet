@@ -193,6 +193,28 @@ export class ProfileService {
   }
 
   /**
+   * Get Jellyfin credentials for a profile
+   */
+  async getJellyfinCredentials(profileId: string, userId: string): Promise<{
+    jellyfinUserId: string;
+    jellyfinAccessToken: string;
+  }> {
+    const profile = await this.getProfileById(profileId, userId);
+
+    // For Jellyfin API calls from frontend, we return the profile's Jellyfin user ID
+    // The access token is managed by the Jellyfin SDK on the frontend
+    // However, for server-side calls, we can generate an access token
+
+    // For now, we'll return the jellyfinUserId and let the frontend handle authentication
+    // The frontend will use quick connect or authenticate directly with Jellyfin
+
+    return {
+      jellyfinUserId: profile.jellyfinUserId,
+      jellyfinAccessToken: '', // Frontend will authenticate with Jellyfin directly
+    };
+  }
+
+  /**
    * Get profile limit based on plan
    */
   private getProfileLimit(plan: Plan): number {

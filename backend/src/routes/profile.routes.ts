@@ -25,4 +25,7 @@ router.delete('/:id', profileController.deleteProfile);
 // Set profile as primary
 router.post('/:id/primary', profileController.setPrimaryProfile);
 
+// Get Jellyfin credentials for current profile
+router.get('/jellyfin/credentials', profileController.getJellyfinCredentials);
+
 export default router;

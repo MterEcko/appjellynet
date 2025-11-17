@@ -5,6 +5,7 @@ import accountRoutes from './account.routes';
 import profileRoutes from './profile.routes';
 import adminRoutes from './admin.routes';
 import adRoutes from './ad.routes';
+import jellyfinRoutes from './jellyfin.routes';
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.use('/servers', serverRoutes);
 router.use('/account', accountRoutes);
 router.use('/profiles', profileRoutes);
 router.use('/ads', adRoutes);
+router.use('/jellyfin', jellyfinRoutes);
 
 // Admin routes
 router.use('/admin', adminRoutes);

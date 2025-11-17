@@ -2,12 +2,10 @@ import api from './api';
 
 /**
  * Jellyfin API Service
- * Handles all communication with Jellyfin servers
+ * All requests are proxied through our backend for authentication
  */
 
 let serverUrl = null;
-let jellyfinUserId = null;
-let jellyfinAccessToken = null;
 
 /**
  * Initialize Jellyfin connection
@@ -17,14 +15,6 @@ export async function initializeJellyfin() {
     // Get detected server from backend
     const response = await api.get('/servers/detect');
     serverUrl = response.data.data.server.url;
-
-    // Get Jellyfin credentials from profile
-    const profileData = JSON.parse(localStorage.getItem('currentProfile'));
-    if (profileData) {
-      jellyfinUserId = profileData.jellyfinUserId;
-      // You'll need to get the Jellyfin access token from backend
-      // For now, we'll use the backend API as proxy
-    }
 
     return serverUrl;
   } catch (error) {
@@ -37,17 +27,9 @@ export async function initializeJellyfin() {
  * Get latest media items
  */
 export async function getLatestMedia(limit = 16) {
-  if (!serverUrl) await initializeJellyfin();
-
-  const url = `${serverUrl}/Users/${jellyfinUserId}/Items/Latest?Limit=${limit}&Fields=PrimaryImageAspectRatio,Overview,Genres&ImageTypeLimit=1&EnableImageTypes=Primary,Backdrop,Thumb`;
-
   try {
-    const response = await fetch(url, {
-      headers: {
-        'X-Emby-Token': jellyfinAccessToken,
-      },
-    });
-    return await response.json();
+    const response = await api.get(`/jellyfin/latest?limit=${limit}`);
+    return response.data.data;
   } catch (error) {
     console.error('Failed to get latest media:', error);
     return [];
@@ -58,18 +40,9 @@ export async function getLatestMedia(limit = 16) {
  * Get resume items (continue watching)
  */
 export async function getResumeItems() {
-  if (!serverUrl) await initializeJellyfin();
-
-  const url = `${serverUrl}/Users/${jellyfinUserId}/Items/Resume?Limit=12&Fields=PrimaryImageAspectRatio,Overview&ImageTypeLimit=1&EnableImageTypes=Primary,Backdrop,Thumb&MediaTypes=Video`;
-
   try {
-    const response = await fetch(url, {
-      headers: {
-        'X-Emby-Token': jellyfinAccessToken,
-      },
-    });
-    const data = await response.json();
-    return data.Items || [];
+    const response = await api.get('/jellyfin/resume');
+    return response.data.data.Items || [];
   } catch (error) {
     console.error('Failed to get resume items:', error);
     return [];
@@ -80,30 +53,9 @@ export async function getResumeItems() {
  * Get items by type (Movies, Series, etc.)
  */
 export async function getItemsByType(type, limit = 20, startIndex = 0) {
-  if (!serverUrl) await initializeJellyfin();
-
-  const params = new URLSearchParams({
-    IncludeItemTypes: type,
-    Recursive: 'true',
-    Limit: limit,
-    StartIndex: startIndex,
-    Fields: 'PrimaryImageAspectRatio,Overview,Genres',
-    ImageTypeLimit: 1,
-    EnableImageTypes: 'Primary,Backdrop,Thumb',
-    SortBy: 'SortName',
-    SortOrder: 'Ascending',
-  });
-
-  const url = `${serverUrl}/Users/${jellyfinUserId}/Items?${params}`;
-
   try {
-    const response = await fetch(url, {
-      headers: {
-        'X-Emby-Token': jellyfinAccessToken,
-      },
-    });
-    const data = await response.json();
-    return data.Items || [];
+    const response = await api.get(`/jellyfin/items/${type}?limit=${limit}&startIndex=${startIndex}`);
+    return response.data.data.Items || [];
   } catch (error) {
     console.error(`Failed to get ${type}:`, error);
     return [];
@@ -114,32 +66,9 @@ export async function getItemsByType(type, limit = 20, startIndex = 0) {
  * Search for items
  */
 export async function searchItems(searchTerm, limit = 20) {
-  if (!serverUrl) await initializeJellyfin();
-
-  const params = new URLSearchParams({
-    searchTerm,
-    Limit: limit,
-    Fields: 'PrimaryImageAspectRatio,Overview',
-    Recursive: 'true',
-    EnableTotalRecordCount: 'false',
-    ImageTypeLimit: 1,
-    IncludePeople: 'false',
-    IncludeMedia: 'true',
-    IncludeGenres: 'false',
-    IncludeStudios: 'false',
-    IncludeArtists: 'false',
-  });
-
-  const url = `${serverUrl}/Users/${jellyfinUserId}/Items?${params}`;
-
   try {
-    const response = await fetch(url, {
-      headers: {
-        'X-Emby-Token': jellyfinAccessToken,
-      },
-    });
-    const data = await response.json();
-    return data.Items || [];
+    const response = await api.get(`/jellyfin/search?q=${encodeURIComponent(searchTerm)}&limit=${limit}`);
+    return response.data.data.Items || [];
   } catch (error) {
     console.error('Search failed:', error);
     return [];
@@ -150,17 +79,9 @@ export async function searchItems(searchTerm, limit = 20) {
  * Get item details
  */
 export async function getItemDetails(itemId) {
-  if (!serverUrl) await initializeJellyfin();
-
-  const url = `${serverUrl}/Users/${jellyfinUserId}/Items/${itemId}`;
-
   try {
-    const response = await fetch(url, {
-      headers: {
-        'X-Emby-Token': jellyfinAccessToken,
-      },
-    });
-    return await response.json();
+    const response = await api.get(`/jellyfin/item/${itemId}`);
+    return response.data.data;
   } catch (error) {
     console.error('Failed to get item details:', error);
     throw error;
@@ -169,11 +90,15 @@ export async function getItemDetails(itemId) {
 
 /**
  * Get playback URL for an item
+ * This constructs the URL for direct streaming from Jellyfin
  */
-export function getPlaybackUrl(itemId, mediaSourceId) {
+export function getPlaybackUrl(itemId, mediaSourceId = null) {
   if (!serverUrl) return '';
 
-  return `${serverUrl}/Videos/${itemId}/stream?Static=true&mediaSourceId=${mediaSourceId}&api_key=${jellyfinAccessToken}`;
+  // For direct playback, we'll use the detected server URL
+  // The actual playback will be handled by the video player with proper auth
+  const source = mediaSourceId || itemId;
+  return `${serverUrl}/Videos/${itemId}/stream?Static=true&mediaSourceId=${source}`;
 }
 
 /**
@@ -186,25 +111,32 @@ export function getImageUrl(itemId, imageType = 'Primary', maxWidth = 500) {
 }
 
 /**
+ * Get backdrop image URL
+ */
+export function getBackdropUrl(item, maxWidth = 1920) {
+  if (!serverUrl || !item) return '';
+
+  if (item.BackdropImageTags && item.BackdropImageTags.length > 0) {
+    return `${serverUrl}/Items/${item.Id}/Images/Backdrop/0?maxWidth=${maxWidth}&tag=${item.BackdropImageTags[0]}`;
+  }
+
+  // Fallback to primary image
+  if (item.ImageTags && item.ImageTags.Primary) {
+    return `${serverUrl}/Items/${item.Id}/Images/Primary?maxWidth=${maxWidth}&tag=${item.ImageTags.Primary}`;
+  }
+
+  return '';
+}
+
+/**
  * Report playback progress
  */
 export async function reportPlaybackProgress(itemId, positionTicks, isPaused = false) {
-  if (!serverUrl) return;
-
-  const url = `${serverUrl}/Sessions/Playing/Progress`;
-
   try {
-    await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Emby-Token': jellyfinAccessToken,
-      },
-      body: JSON.stringify({
-        ItemId: itemId,
-        PositionTicks: positionTicks,
-        IsPaused: isPaused,
-      }),
+    await api.post('/jellyfin/playback/progress', {
+      itemId,
+      positionTicks,
+      isPaused,
     });
   } catch (error) {
     console.error('Failed to report playback progress:', error);
@@ -215,21 +147,10 @@ export async function reportPlaybackProgress(itemId, positionTicks, isPaused = f
  * Report playback stopped
  */
 export async function reportPlaybackStopped(itemId, positionTicks) {
-  if (!serverUrl) return;
-
-  const url = `${serverUrl}/Sessions/Playing/Stopped`;
-
   try {
-    await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Emby-Token': jellyfinAccessToken,
-      },
-      body: JSON.stringify({
-        ItemId: itemId,
-        PositionTicks: positionTicks,
-      }),
+    await api.post('/jellyfin/playback/stopped', {
+      itemId,
+      positionTicks,
     });
   } catch (error) {
     console.error('Failed to report playback stopped:', error);
@@ -245,6 +166,7 @@ export default {
   getItemDetails,
   getPlaybackUrl,
   getImageUrl,
+  getBackdropUrl,
   reportPlaybackProgress,
   reportPlaybackStopped,
   get serverUrl() {

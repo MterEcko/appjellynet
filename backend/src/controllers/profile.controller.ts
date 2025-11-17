@@ -129,6 +129,26 @@ export class ProfileController {
       next(error);
     }
   }
+
+  /**
+   * Get Jellyfin credentials for current profile
+   */
+  async getJellyfinCredentials(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      const profileId = req.user?.profileId;
+
+      if (!userId || !profileId) {
+        throw new Error('User not authenticated');
+      }
+
+      const credentials = await profileService.getJellyfinCredentials(profileId, userId);
+
+      sendSuccess(res, credentials, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new ProfileController();
