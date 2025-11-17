@@ -1,0 +1,395 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==============================================================================
+// ENUMS
+// ==============================================================================
+
+enum AccountType {
+  WISP
+  DEMO
+  MONTHLY
+  WEEKLY
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  PENDING
+  GRACE_PERIOD
+}
+
+enum Plan {
+  BASIC
+  PREMIUM
+  DEMO
+}
+
+enum AdType {
+  PREROLL
+  MIDROLL
+  PAUSEROLL
+}
+
+enum WebhookEvent {
+  ACCOUNT_CREATED
+  ACCOUNT_SUSPENDED
+  ACCOUNT_REACTIVATED
+  ACCOUNT_UPGRADED
+  ACCOUNT_CANCELLED
+  ACCOUNT_PAYMENT_SUCCESS
+  ACCOUNT_PAYMENT_FAILED
+  PROFILE_CREATED
+  PROFILE_DELETED
+  PASSWORD_CHANGED
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  PLAYBACK_STARTED
+  PLAYBACK_COMPLETED
+  AD_VIEWED
+  AD_COMPLETED
+  AD_SKIPPED
+}
+
+enum PaymentStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  FAILED
+}
+
+enum PaymentProvider {
+  STRIPE
+  MERCADOPAGO
+}
+
+// ==============================================================================
+// USER & PROFILE MODELS
+// ==============================================================================
+
+model User {
+  id                 String        @id @default(uuid())
+  email              String        @unique
+  passwordHash       String        @map("password_hash")
+  plan               Plan          @default(BASIC)
+  accountType        AccountType   @map("account_type")
+  status             AccountStatus @default(ACTIVE)
+
+  // WISP specific
+  wispCustomerId     String?       @unique @map("wisp_customer_id")
+
+  // Demo specific
+  demoExpiresAt      DateTime?     @map("demo_expires_at")
+  demoDurationDays   Int?          @map("demo_duration_days")
+
+  // Stripe specific
+  stripeCustomerId   String?       @unique @map("stripe_customer_id")
+
+  // Timestamps
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  lastLogin          DateTime?     @map("last_login")
+  suspendedAt        DateTime?     @map("suspended_at")
+
+  // Suspension info
+  suspensionReason   String?       @map("suspension_reason")
+
+  // Roles
+  isAdmin            Boolean       @default(false) @map("is_admin")
+
+  // Relations
+  profiles           Profile[]
+  subscriptions      Subscription[]
+  auditLogs          AuditLog[]
+  watchHistory       WatchHistory[]
+  apiKeys            ApiKey[]
+
+  @@map("users")
+}
+
+model Profile {
+  id                   String    @id @default(uuid())
+  userId               String    @map("user_id")
+  jellyfinUserId       String    @unique @map("jellyfin_user_id")
+
+  name                 String
+  avatar               String?
+  pin                  String?
+  ageRestriction       Int?      @map("age_restriction")
+  language             String    @default("es")
+  subtitleLanguage     String?   @map("subtitle_language")
+  qualityPreference    String?   @map("quality_preference")
+  isPrimary            Boolean   @default(false) @map("is_primary")
+
+  // Timestamps
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchHistory         WatchHistory[]
+
+  @@map("profiles")
+}
+
+// ==============================================================================
+// JELLYFIN SERVER MODELS
+// ==============================================================================
+
+model Server {
+  id          String   @id @default(uuid())
+  serverId    String   @unique @map("server_id")
+  name        String
+  url         String
+  networkCidr String?  @map("network_cidr")
+  priority    Int
+  protocol    String   @default("http")
+  isFallback  Boolean  @default(false) @map("is_fallback")
+  isActive    Boolean  @default(true) @map("is_active")
+
+  // Health check
+  lastHealthCheck DateTime? @map("last_health_check")
+  isHealthy       Boolean   @default(true) @map("is_healthy")
+  latency         Int?
+
+  // Timestamps
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("servers")
+}
+
+// ==============================================================================
+// ADVERTISING MODELS
+// ==============================================================================
+
+model Ad {
+  id            String   @id @default(uuid())
+  type          AdType
+  campaignName  String   @map("campaign_name")
+  filePath      String   @map("file_path")
+  thumbnailPath String?  @map("thumbnail_path")
+  duration      Int?     // Duration in seconds (for videos)
+  weight        Int      @default(5) // 1-10
+  clickUrl      String?  @map("click_url") // For pauseroll ads
+
+  startDate     DateTime @map("start_date")
+  endDate       DateTime @map("end_date")
+  isActive      Boolean  @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  views         AdView[]
+
+  @@map("ads")
+}
+
+model AdView {
+  id          String   @id @default(uuid())
+  adId        String   @map("ad_id")
+  userId      String?  @map("user_id")
+  itemId      String?  @map("item_id") // Jellyfin content ID
+
+  // Events
+  impression  Boolean  @default(false)
+  started     Boolean  @default(false)
+  completed   Boolean  @default(false)
+  skipped     Boolean  @default(false)
+  clicked     Boolean  @default(false)
+
+  // Metadata
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+
+  // Timestamps
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  ad          Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@map("ad_views")
+}
+
+// ==============================================================================
+// WATCH HISTORY
+// ==============================================================================
+
+model WatchHistory {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  profileId     String   @map("profile_id")
+  itemId        String   @map("item_id") // Jellyfin content ID
+  itemType      String   @map("item_type") // Movie, Episode, etc.
+  itemTitle     String   @map("item_title")
+
+  watchedAt     DateTime @default(now()) @map("watched_at")
+  duration      Int?     // Total duration in seconds
+  watchedDuration Int?   @map("watched_duration") // How much was watched
+  completed     Boolean  @default(false)
+
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile       Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("watch_history")
+}
+
+// ==============================================================================
+// SUBSCRIPTION & PAYMENT MODELS
+// ==============================================================================
+
+model Subscription {
+  id                  String          @id @default(uuid())
+  userId              String          @map("user_id")
+  provider            PaymentProvider
+
+  // Provider specific IDs
+  stripeSubscriptionId   String?      @unique @map("stripe_subscription_id")
+  mercadopagoSubscriptionId String?   @unique @map("mercadopago_subscription_id")
+
+  plan                Plan
+  status              PaymentStatus
+
+  currentPeriodStart  DateTime        @map("current_period_start")
+  currentPeriodEnd    DateTime        @map("current_period_end")
+  cancelAtPeriodEnd   Boolean         @default(false) @map("cancel_at_period_end")
+
+  // Timestamps
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  cancelledAt         DateTime?       @map("cancelled_at")
+
+  // Relations
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model PaymentMethod {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  provider    PaymentProvider
+
+  // Provider specific
+  stripePaymentMethodId String? @unique @map("stripe_payment_method_id")
+
+  last4       String?
+  brand       String?  // visa, mastercard, etc.
+  expiryMonth Int?     @map("expiry_month")
+  expiryYear  Int?     @map("expiry_year")
+
+  isDefault   Boolean  @default(false) @map("is_default")
+
+  // Timestamps
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("payment_methods")
+}
+
+// ==============================================================================
+// WEBHOOK MODELS
+// ==============================================================================
+
+model Webhook {
+  id          String          @id @default(uuid())
+  url         String
+  events      WebhookEvent[]
+  secret      String?
+  isActive    Boolean         @default(true) @map("is_active")
+
+  // Custom headers (stored as JSON)
+  headers     Json?
+
+  // Timestamps
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  deliveries  WebhookDelivery[]
+
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id          String   @id @default(uuid())
+  webhookId   String   @map("webhook_id")
+  event       WebhookEvent
+  payload     Json
+
+  // Response info
+  statusCode  Int?     @map("status_code")
+  response    String?
+  success     Boolean  @default(false)
+
+  attempts    Int      @default(1)
+  nextRetry   DateTime? @map("next_retry")
+
+  // Timestamps
+  createdAt   DateTime @default(now()) @map("created_at")
+  deliveredAt DateTime? @map("delivered_at")
+
+  // Relations
+  webhook     Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@map("webhook_deliveries")
+}
+
+// ==============================================================================
+// API KEY MODEL
+// ==============================================================================
+
+model ApiKey {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  name        String
+  key         String   @unique
+
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  isActive    Boolean   @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+// ==============================================================================
+// AUDIT LOG MODEL
+// ==============================================================================
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  action      String
+  entity      String
+  entityId    String?  @map("entity_id")
+  changes     Json?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+
+  // Timestamps
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
