@@ -4,6 +4,7 @@ import serverRoutes from './server.routes';
 import accountRoutes from './account.routes';
 import profileRoutes from './profile.routes';
 import adminRoutes from './admin.routes';
+import adRoutes from './ad.routes';
 
 const router = Router();
 
@@ -19,6 +20,7 @@ router.use('/auth', authRoutes);
 router.use('/servers', serverRoutes);
 router.use('/account', accountRoutes);
 router.use('/profiles', profileRoutes);
+router.use('/ads', adRoutes);
 
 // Admin routes
 router.use('/admin', adminRoutes);
