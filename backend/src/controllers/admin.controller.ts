@@ -117,7 +117,7 @@ export class AdminController {
   /**
    * Get dashboard stats
    */
-  async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getDashboardStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const stats = await adminService.getDashboardStats();
 
@@ -146,7 +146,7 @@ export class AdminController {
   /**
    * Get all available plans
    */
-  async getAllPlans(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getAllPlans(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const plans = planService.getAllPlans();
 
@@ -159,7 +159,7 @@ export class AdminController {
   /**
    * Get plan comparison
    */
-  async getPlanComparison(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getPlanComparison(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const comparison = planService.getPlanComparison();
 

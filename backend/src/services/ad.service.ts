@@ -223,20 +223,28 @@ class AdService {
         isActive: true,
         OR: [
           {
-            startDate: null,
-            endDate: null,
+            AND: [
+              { startDate: { lte: now } },
+              { endDate: { gte: now } },
+            ],
           },
           {
-            startDate: { lte: now },
-            endDate: { gte: now },
+            AND: [
+              { startDate: { lte: now } },
+              { endDate: null },
+            ],
           },
           {
-            startDate: { lte: now },
-            endDate: null,
+            AND: [
+              { startDate: null },
+              { endDate: { gte: now } },
+            ],
           },
           {
-            startDate: null,
-            endDate: { gte: now },
+            AND: [
+              { startDate: null },
+              { endDate: null },
+            ],
           },
         ],
       },

@@ -181,13 +181,62 @@ export class JellyfinApiService {
     }
   }
 
-  async searchItems(userId: string, searchTerm: string): Promise<any> {
+  async getLatestMedia(userId: string, limit: number = 16): Promise<any> {
+    try {
+      const response = await this.api.get(`/Users/${userId}/Items/Latest`, {
+        params: {
+          limit,
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error(`Jellyfin getLatestMedia error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getResumeItems(userId: string): Promise<any> {
+    try {
+      const response = await this.api.get(`/Users/${userId}/Items/Resume`, {
+        params: {
+          limit: 20,
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error(`Jellyfin getResumeItems error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getItemsByType(userId: string, type: string, limit: number = 20, startIndex: number = 0): Promise<any> {
+    try {
+      const response = await this.api.get(`/Users/${userId}/Items`, {
+        params: {
+          includeItemTypes: type,
+          limit,
+          startIndex,
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error(`Jellyfin getItemsByType error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getItemDetails(userId: string, itemId: string): Promise<any> {
+    // Alias for getItemById for consistency
+    return this.getItemById(userId, itemId);
+  }
+
+  async searchItems(userId: string, searchTerm: string, limit: number = 20): Promise<any> {
     try {
       const response = await this.api.get('/Search/Hints', {
         params: {
           userId,
           searchTerm,
-          limit: 20,
+          limit,
         },
       });
       return response.data;

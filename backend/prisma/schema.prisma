@@ -33,6 +33,7 @@ enum Plan {
   BASIC
   PREMIUM
   DEMO
+  FAMILY
 }
 
 enum AdType {
@@ -176,15 +177,26 @@ model Server {
 model Ad {
   id            String   @id @default(uuid())
   type          AdType
-  campaignName  String   @map("campaign_name")
-  filePath      String   @map("file_path")
+  title         String   // Title/name of the ad
+  campaignName  String?  @map("campaign_name")
+  filePath      String?  @map("file_path")
+  url           String?  // URL for the ad content
   thumbnailPath String?  @map("thumbnail_path")
   duration      Int?     // Duration in seconds (for videos)
+  skipAfter     Int?     @map("skip_after") // Seconds before ad can be skipped
   weight        Int      @default(5) // 1-10
   clickUrl      String?  @map("click_url") // For pauseroll ads
 
-  startDate     DateTime @map("start_date")
-  endDate       DateTime @map("end_date")
+  // Targeting and audience
+  targetAudience Json?   @map("target_audience")
+
+  // Statistics (denormalized for performance)
+  impressions   Int      @default(0)
+  completions   Int      @default(0)
+  skips         Int      @default(0)
+
+  startDate     DateTime? @map("start_date")
+  endDate       DateTime? @map("end_date")
   isActive      Boolean  @default(true) @map("is_active")
 
   // Timestamps
@@ -201,7 +213,9 @@ model AdView {
   id          String   @id @default(uuid())
   adId        String   @map("ad_id")
   userId      String?  @map("user_id")
-  itemId      String?  @map("item_id") // Jellyfin content ID
+  profileId   String?  @map("profile_id") // Profile that viewed the ad
+  itemId      String?  @map("item_id") // Jellyfin item ID
+  contentId   String?  @map("content_id") // General content ID
 
   // Events
   impression  Boolean  @default(false)
@@ -209,6 +223,9 @@ model AdView {
   completed   Boolean  @default(false)
   skipped     Boolean  @default(false)
   clicked     Boolean  @default(false)
+
+  // Viewing metrics
+  watchedSeconds Int?  @map("watched_seconds") // How many seconds were watched
 
   // Metadata
   ipAddress   String?  @map("ip_address")

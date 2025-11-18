@@ -216,7 +216,7 @@ export class JellyfinProxyController {
     try {
       const profileId = req.user?.profileId;
       const clientIp = getClientIp(req);
-      const { itemId, positionTicks } = req.body;
+      const { itemId, sessionId, positionTicks } = req.body;
 
       if (!profileId) {
         throw new Error('Profile not selected');
@@ -233,7 +233,7 @@ export class JellyfinProxyController {
       const detectedServer = await serverDetectionService.detectBestServer(clientIp);
       const jellyfinApi = new JellyfinApiService(detectedServer.server.url);
 
-      await jellyfinApi.reportPlaybackStopped(profile.jellyfinUserId, itemId, positionTicks);
+      await jellyfinApi.reportPlaybackStopped(profile.jellyfinUserId, itemId, sessionId, positionTicks);
 
       sendSuccess(res, { message: 'Playback stopped reported' }, 200);
     } catch (error) {

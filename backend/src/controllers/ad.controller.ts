@@ -64,12 +64,14 @@ export const createAd = async (req: Request, res: Response): Promise<void> => {
       endDate: validatedData.endDate ? new Date(validatedData.endDate) : undefined,
     });
 
-    sendSuccess(res, ad, 'Ad created successfully', 201);
+    sendSuccess(res, ad, 201);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return sendError(res, 'VALIDATION_ERROR', error.errors[0].message, 400);
+      sendError(res, 'VALIDATION_ERROR', error.errors[0].message, 400);
+    return;
     }
     sendError(res, 'CREATE_AD_ERROR', error.message, 500);
+    return;
   }
 };
 
@@ -91,9 +93,10 @@ export const getAds = async (req: Request, res: Response): Promise<void> => {
       limit,
     });
 
-    sendSuccess(res, result, 'Ads retrieved successfully');
+    sendSuccess(res, result);
   } catch (error: any) {
     sendError(res, 'GET_ADS_ERROR', error.message, 500);
+    return;
   }
 };
 
@@ -107,12 +110,14 @@ export const getAdById = async (req: Request, res: Response): Promise<void> => {
 
     const ad = await adService.getAdById(id);
 
-    sendSuccess(res, ad, 'Ad retrieved successfully');
+    sendSuccess(res, ad);
   } catch (error: any) {
     if (error.message === 'Ad not found') {
-      return sendError(res, 'AD_NOT_FOUND', error.message, 404);
+      sendError(res, 'AD_NOT_FOUND', error.message, 404);
+    return;
     }
     sendError(res, 'GET_AD_ERROR', error.message, 500);
+    return;
   }
 };
 
@@ -138,15 +143,18 @@ export const updateAd = async (req: Request, res: Response): Promise<void> => {
       endDate: validatedData.endDate ? new Date(validatedData.endDate) : undefined,
     });
 
-    sendSuccess(res, ad, 'Ad updated successfully');
+    sendSuccess(res, ad);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return sendError(res, 'VALIDATION_ERROR', error.errors[0].message, 400);
+      sendError(res, 'VALIDATION_ERROR', error.errors[0].message, 400);
+    return;
     }
     if (error.message === 'Ad not found') {
-      return sendError(res, 'AD_NOT_FOUND', error.message, 404);
+      sendError(res, 'AD_NOT_FOUND', error.message, 404);
+    return;
     }
     sendError(res, 'UPDATE_AD_ERROR', error.message, 500);
+    return;
   }
 };
 
@@ -160,12 +168,14 @@ export const deleteAd = async (req: Request, res: Response): Promise<void> => {
 
     await adService.deleteAd(id);
 
-    sendSuccess(res, null, 'Ad deleted successfully');
+    sendSuccess(res, null);
   } catch (error: any) {
     if (error.message === 'Ad not found') {
-      return sendError(res, 'AD_NOT_FOUND', error.message, 404);
+      sendError(res, 'AD_NOT_FOUND', error.message, 404);
+    return;
     }
     sendError(res, 'DELETE_AD_ERROR', error.message, 500);
+    return;
   }
 };
 
@@ -179,7 +189,8 @@ export const selectAd = async (req: Request, res: Response): Promise<void> => {
     const profileId = req.user?.profileId;
 
     if (!profileId) {
-      return sendError(res, 'PROFILE_REQUIRED', 'Profile ID is required', 400);
+      sendError(res, 'PROFILE_REQUIRED', 'Profile ID is required', 400);
+    return;
     }
 
     const ad = await adService.selectAd({
@@ -189,15 +200,17 @@ export const selectAd = async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!ad) {
-      return sendSuccess(res, null, 'No ad available');
+      sendSuccess(res, null); return;
     }
 
-    sendSuccess(res, ad, 'Ad selected successfully');
+    sendSuccess(res, ad);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return sendError(res, 'VALIDATION_ERROR', error.errors[0].message, 400);
+      sendError(res, 'VALIDATION_ERROR', error.errors[0].message, 400);
+    return;
     }
     sendError(res, 'SELECT_AD_ERROR', error.message, 500);
+    return;
   }
 };
 
@@ -211,7 +224,8 @@ export const trackAdView = async (req: Request, res: Response): Promise<void> =>
     const profileId = req.user?.profileId;
 
     if (!profileId) {
-      return sendError(res, 'PROFILE_REQUIRED', 'Profile ID is required', 400);
+      sendError(res, 'PROFILE_REQUIRED', 'Profile ID is required', 400);
+    return;
     }
 
     await adService.trackAdView({
@@ -223,15 +237,18 @@ export const trackAdView = async (req: Request, res: Response): Promise<void> =>
       watchedSeconds: validatedData.watchedSeconds,
     });
 
-    sendSuccess(res, null, 'Ad view tracked successfully');
+    sendSuccess(res, null);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return sendError(res, 'VALIDATION_ERROR', error.errors[0].message, 400);
+      sendError(res, 'VALIDATION_ERROR', error.errors[0].message, 400);
+    return;
     }
     if (error.message === 'Ad not found') {
-      return sendError(res, 'AD_NOT_FOUND', error.message, 404);
+      sendError(res, 'AD_NOT_FOUND', error.message, 404);
+    return;
     }
     sendError(res, 'TRACK_AD_VIEW_ERROR', error.message, 500);
+    return;
   }
 };
 
@@ -239,13 +256,14 @@ export const trackAdView = async (req: Request, res: Response): Promise<void> =>
  * Get ad statistics
  * GET /api/ads/stats
  */
-export const getAdStats = async (req: Request, res: Response): Promise<void> => {
+export const getAdStats = async (_req: Request, res: Response): Promise<void> => {
   try {
     const stats = await adService.getAdStats();
 
-    sendSuccess(res, stats, 'Ad statistics retrieved successfully');
+    sendSuccess(res, stats);
   } catch (error: any) {
     sendError(res, 'GET_AD_STATS_ERROR', error.message, 500);
+    return;
   }
 };
 
@@ -259,12 +277,14 @@ export const getAdAnalytics = async (req: Request, res: Response): Promise<void>
 
     const analytics = await adService.getAdAnalytics(id);
 
-    sendSuccess(res, analytics, 'Ad analytics retrieved successfully');
+    sendSuccess(res, analytics);
   } catch (error: any) {
     if (error.message === 'Ad not found') {
-      return sendError(res, 'AD_NOT_FOUND', error.message, 404);
+      sendError(res, 'AD_NOT_FOUND', error.message, 404);
+    return;
     }
     sendError(res, 'GET_AD_ANALYTICS_ERROR', error.message, 500);
+    return;
   }
 };
 
@@ -277,7 +297,8 @@ export const calculateMidrollPositions = async (req: Request, res: Response): Pr
     const { contentDurationSeconds, midrollCount } = req.body;
 
     if (!contentDurationSeconds || typeof contentDurationSeconds !== 'number') {
-      return sendError(res, 'VALIDATION_ERROR', 'contentDurationSeconds is required', 400);
+      sendError(res, 'VALIDATION_ERROR', 'contentDurationSeconds is required', 400);
+    return;
     }
 
     const positions = adService.calculateMidrollPositions(
@@ -285,8 +306,9 @@ export const calculateMidrollPositions = async (req: Request, res: Response): Pr
       midrollCount || 2
     );
 
-    sendSuccess(res, { positions }, 'Mid-roll positions calculated successfully');
+    sendSuccess(res, { positions });
   } catch (error: any) {
     sendError(res, 'CALCULATE_MIDROLL_ERROR', error.message, 500);
+    return;
   }
 };
