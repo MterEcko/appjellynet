@@ -43,6 +43,9 @@
                   <span v-if="item.CommunityRating">⭐ {{ item.CommunityRating.toFixed(1) }}</span>
                   <span v-if="item.RunTimeTicks">{{ formatRuntime(item.RunTimeTicks) }}</span>
                 </div>
+                <div v-if="item.Genres && item.Genres.length > 0" class="mt-1 text-xs text-gray-400">
+                  {{ item.Genres.slice(0, 3).join(', ') }}
+                </div>
               </div>
             </div>
           </div>

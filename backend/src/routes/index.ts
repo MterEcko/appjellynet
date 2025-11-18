@@ -6,6 +6,8 @@ import profileRoutes from './profile.routes';
 import adminRoutes from './admin.routes';
 import adRoutes from './ad.routes';
 import jellyfinRoutes from './jellyfin.routes';
+import watchlistRoutes from './watchlist.routes';
+import favoriteRoutes from './favorite.routes';
 
 const router = Router();
 
@@ -23,6 +25,8 @@ router.use('/account', accountRoutes);
 router.use('/profiles', profileRoutes);
 router.use('/ads', adRoutes);
 router.use('/jellyfin', jellyfinRoutes);
+router.use('/watchlist', watchlistRoutes);
+router.use('/favorites', favoriteRoutes);
 
 // Admin routes
 router.use('/admin', adminRoutes);

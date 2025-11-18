@@ -18,10 +18,10 @@
 
           <!-- Navigation Links -->
           <div class="hidden md:flex gap-6 text-sm">
-            <a href="#" class="hover:text-gray-300 transition-colors">Inicio</a>
-            <a href="#" class="hover:text-gray-300 transition-colors">Películas</a>
-            <a href="#" class="hover:text-gray-300 transition-colors">Series</a>
-            <a href="#" class="hover:text-gray-300 transition-colors">Mi Lista</a>
+            <button @click="currentView = 'home'" :class="{ 'text-white font-semibold': currentView === 'home' }" class="hover:text-gray-300 transition-colors">Inicio</button>
+            <button @click="currentView = 'movies'" :class="{ 'text-white font-semibold': currentView === 'movies' }" class="hover:text-gray-300 transition-colors">Películas</button>
+            <button @click="currentView = 'series'" :class="{ 'text-white font-semibold': currentView === 'series' }" class="hover:text-gray-300 transition-colors">Series</button>
+            <button @click="loadMyList" :class="{ 'text-white font-semibold': currentView === 'mylist' }" class="hover:text-gray-300 transition-colors">Mi Lista</button>
           </div>
         </div>
 
@@ -59,7 +59,7 @@
 
     <!-- Hero Banner -->
     <HeroBanner
-      v-if="featuredItem"
+      v-if="featuredItem && currentView === 'home'"
       :featured-item="featuredItem"
       :server-url="serverUrl"
       @play="playItem"
@@ -67,42 +67,88 @@
     />
 
     <!-- Content Rows -->
-    <div class="-mt-32 relative z-20">
-      <!-- Continue Watching -->
-      <ContentRow
-        v-if="continueWatching.length > 0"
-        title="Continuar viendo"
-        :items="continueWatching"
-        :server-url="serverUrl"
-        @play="playItem"
-      />
+    <div :class="{ '-mt-32': currentView === 'home', 'pt-24': currentView !== 'home' }" class="relative z-20">
+      <!-- Home View -->
+      <template v-if="currentView === 'home'">
+        <!-- Continue Watching -->
+        <ContentRow
+          v-if="continueWatching.length > 0"
+          title="Continuar viendo"
+          :items="continueWatching"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
 
-      <!-- Latest Movies -->
-      <ContentRow
-        v-if="latestMovies.length > 0"
-        title="Películas recientes"
-        :items="latestMovies"
-        :server-url="serverUrl"
-        @play="playItem"
-      />
+        <!-- Latest Movies -->
+        <ContentRow
+          v-if="latestMovies.length > 0"
+          title="Películas recientes"
+          :items="latestMovies"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
 
-      <!-- Latest Series -->
-      <ContentRow
-        v-if="latestSeries.length > 0"
-        title="Series recientes"
-        :items="latestSeries"
-        :server-url="serverUrl"
-        @play="playItem"
-      />
+        <!-- Latest Series -->
+        <ContentRow
+          v-if="latestSeries.length > 0"
+          title="Series recientes"
+          :items="latestSeries"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
 
-      <!-- Popular -->
-      <ContentRow
-        v-if="popularItems.length > 0"
-        title="Popular"
-        :items="popularItems"
-        :server-url="serverUrl"
-        @play="playItem"
-      />
+        <!-- Popular -->
+        <ContentRow
+          v-if="popularItems.length > 0"
+          title="Popular"
+          :items="popularItems"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
+      </template>
+
+      <!-- Movies View -->
+      <template v-else-if="currentView === 'movies'">
+        <div class="px-8">
+          <h1 class="text-4xl font-bold mb-8">Películas</h1>
+        </div>
+        <ContentRow
+          v-if="latestMovies.length > 0"
+          title="Todas las películas"
+          :items="latestMovies"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
+      </template>
+
+      <!-- Series View -->
+      <template v-else-if="currentView === 'series'">
+        <div class="px-8">
+          <h1 class="text-4xl font-bold mb-8">Series</h1>
+        </div>
+        <ContentRow
+          v-if="latestSeries.length > 0"
+          title="Todas las series"
+          :items="latestSeries"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
+      </template>
+
+      <!-- My List View -->
+      <template v-else-if="currentView === 'mylist'">
+        <div class="px-8">
+          <h1 class="text-4xl font-bold mb-8">Mi Lista</h1>
+          <p v-if="myListItems.length === 0" class="text-gray-400">No tienes elementos en tu lista</p>
+        </div>
+        <ContentRow
+          v-if="myListItems.length > 0"
+          title="Mis películas y series"
+          :items="myListItems"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
+      </template>
     </div>
 
     <!-- Loading State -->
@@ -123,6 +169,7 @@ import HeroBanner from '@/components/HeroBanner.vue';
 import ContentRow from '@/components/ContentRow.vue';
 import ItemDetailsModal from '@/components/ItemDetailsModal.vue';
 import jellyfinService from '@/services/jellyfin';
+import { useWatchlist } from '@/composables/useWatchlist';
 
 export default {
   name: 'Browse',
@@ -134,11 +181,13 @@ export default {
   setup() {
     const router = useRouter();
     const authStore = useAuthStore();
+    const { watchlist, loadWatchlist } = useWatchlist();
 
     const scrolled = ref(false);
     const showProfileMenu = ref(false);
     const loading = ref(true);
     const selectedItem = ref(null);
+    const currentView = ref('home');
 
     const serverUrl = ref('');
     const featuredItem = ref(null);
@@ -146,6 +195,7 @@ export default {
     const latestMovies = ref([]);
     const latestSeries = ref([]);
     const popularItems = ref([]);
+    const myListItems = ref([]);
 
     const currentProfile = computed(() => authStore.currentProfile);
 
@@ -183,7 +233,13 @@ export default {
     };
 
     const playItem = (item) => {
-      router.push({ name: 'Watch', params: { id: item.Id } });
+      if (item.Type === 'Series') {
+        // For series, show modal with series details (seasons/episodes)
+        showItemInfo(item);
+      } else {
+        // For movies, go directly to the player
+        router.push({ name: 'Watch', params: { id: item.Id } });
+      }
     };
 
     const showItemInfo = async (item) => {
@@ -195,6 +251,34 @@ export default {
         console.error('Failed to load item details:', error);
         // Fallback to basic item info
         selectedItem.value = item;
+      }
+    };
+
+    const loadMyList = async () => {
+      currentView.value = 'mylist';
+      try {
+        await loadWatchlist();
+        // Map watchlist items to Jellyfin items format
+        myListItems.value = await Promise.all(
+          watchlist.value.map(async (item) => {
+            // Try to get full item details from Jellyfin
+            try {
+              const details = await jellyfinService.getItemDetails(item.itemId);
+              return details;
+            } catch (error) {
+              // Fallback to stored data
+              return {
+                Id: item.itemId,
+                Name: item.itemTitle,
+                Type: item.itemType,
+                ...item.itemData,
+              };
+            }
+          })
+        );
+      } catch (error) {
+        console.error('Failed to load my list:', error);
+        myListItems.value = [];
       }
     };
 
@@ -217,15 +301,18 @@ export default {
       showProfileMenu,
       loading,
       selectedItem,
+      currentView,
       serverUrl,
       featuredItem,
       continueWatching,
       latestMovies,
       latestSeries,
       popularItems,
+      myListItems,
       currentProfile,
       playItem,
       showItemInfo,
+      loadMyList,
       logout,
     };
   },

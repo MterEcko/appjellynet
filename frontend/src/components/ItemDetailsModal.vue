@@ -37,18 +37,34 @@
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
-              Reproducir
+              {{ item.Type === 'Series' ? 'Ver series' : 'Reproducir' }}
             </button>
 
-            <button class="w-10 h-10 flex items-center justify-center rounded-full border-2 border-gray-400 hover:border-white transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button
+              @click="handleWatchlistToggle"
+              :class="{ 'bg-white text-black border-white': isInWatchlistState }"
+              class="w-10 h-10 flex items-center justify-center rounded-full border-2 border-gray-400 hover:border-white transition-colors"
+              :title="isInWatchlistState ? 'Quitar de mi lista' : 'Agregar a mi lista'"
+            >
+              <svg v-if="!isInWatchlistState" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
               </svg>
             </button>
 
-            <button class="w-10 h-10 flex items-center justify-center rounded-full border-2 border-gray-400 hover:border-white transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button
+              @click="handleFavoriteToggle"
+              :class="{ 'bg-white text-black border-white': isFavoritedState }"
+              class="w-10 h-10 flex items-center justify-center rounded-full border-2 border-gray-400 hover:border-white transition-colors"
+              :title="isFavoritedState ? 'Quitar me gusta' : 'Me gusta'"
+            >
+              <svg v-if="!isFavoritedState" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+              </svg>
+              <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" />
               </svg>
             </button>
           </div>
@@ -133,8 +149,10 @@
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import jellyfinService from '@/services/jellyfin';
+import { useWatchlist } from '@/composables/useWatchlist';
+import { useFavorites } from '@/composables/useFavorites';
 
 export default {
   name: 'ItemDetailsModal',
@@ -147,6 +165,11 @@ export default {
   emits: ['close', 'play', 'item-selected'],
   setup(props) {
     const similarItems = ref([]);
+    const isInWatchlistState = ref(false);
+    const isFavoritedState = ref(false);
+
+    const { toggleWatchlist, isInWatchlist } = useWatchlist();
+    const { toggleFavorite, isFavorited } = useFavorites();
 
     const backdropUrl = computed(() => {
       if (!props.item) return '';
@@ -165,11 +188,36 @@ export default {
       return `${hours}h ${remainingMinutes}min`;
     };
 
+    const handleWatchlistToggle = async () => {
+      if (!props.item) return;
+      const success = await toggleWatchlist(props.item);
+      if (success) {
+        isInWatchlistState.value = !isInWatchlistState.value;
+      }
+    };
+
+    const handleFavoriteToggle = async () => {
+      if (!props.item) return;
+      const success = await toggleFavorite(props.item);
+      if (success) {
+        isFavoritedState.value = !isFavoritedState.value;
+      }
+    };
+
+    const checkStatuses = async () => {
+      if (!props.item) return;
+      isInWatchlistState.value = await isInWatchlist(props.item.Id);
+      isFavoritedState.value = await isFavorited(props.item.Id);
+    };
+
     // Load similar items when item changes
     watch(
       () => props.item,
       async (newItem) => {
         if (newItem) {
+          // Check watchlist and favorite status
+          await checkStatuses();
+
           // TODO: Implement getSimilarItems in jellyfin service
           // For now, we'll leave this empty
           similarItems.value = [];
@@ -183,6 +231,10 @@ export default {
       backdropUrl,
       getImageUrl,
       formatRuntime,
+      isInWatchlistState,
+      isFavoritedState,
+      handleWatchlistToggle,
+      handleFavoriteToggle,
     };
   },
 };
