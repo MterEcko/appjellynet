@@ -27,6 +27,7 @@ if not exist .env (
 )
 
 echo Verificando Prisma...
+set PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 call npx prisma generate >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo.

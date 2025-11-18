@@ -49,6 +49,7 @@ echo.
 
 REM Paso 4: Intentar generar Prisma (sin detener si falla)
 echo [4/5] Intentando generar cliente de Prisma...
+set PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 call npx prisma generate >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     echo OK - Cliente de Prisma generado

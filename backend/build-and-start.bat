@@ -37,7 +37,8 @@ echo NOTA: Si esto falla, los servidores de Prisma pueden estar caidos temporalm
 echo Espera unas horas y vuelve a intentar
 echo.
 
-REM Intentar generar Prisma
+REM Intentar generar Prisma (ignorando checksum si es necesario)
+set PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 call npx prisma generate
 if %ERRORLEVEL% NEQ 0 (
     echo.
