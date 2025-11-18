@@ -14,7 +14,7 @@ export async function initializeJellyfin() {
   try {
     // Get detected server from backend
     const response = await api.get('/servers/detect');
-    serverUrl = response.data.data.server.url;
+    serverUrl = response.data.data.url;
 
     return serverUrl;
   } catch (error) {
