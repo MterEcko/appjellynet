@@ -140,6 +140,7 @@ model Profile {
   user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   watchHistory         WatchHistory[]
 
+  @@unique([userId, name])
   @@map("profiles")
 }
 
