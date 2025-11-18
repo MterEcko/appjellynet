@@ -78,6 +78,26 @@
               Cuentas
             </button>
             <button
+              @click="activeTab = 'plans'"
+              :class="{
+                'border-primary text-primary': activeTab === 'plans',
+                'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300': activeTab !== 'plans',
+              }"
+              class="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
+            >
+              Planes
+            </button>
+            <button
+              @click="activeTab = 'ads'"
+              :class="{
+                'border-primary text-primary': activeTab === 'ads',
+                'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300': activeTab !== 'ads',
+              }"
+              class="py-4 px-1 border-b-2 font-medium text-sm transition-colors"
+            >
+              Anuncios
+            </button>
+            <button
               @click="activeTab = 'logs'"
               :class="{
                 'border-primary text-primary': activeTab === 'logs',
