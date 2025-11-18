@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import JellyfinApiService from '../services/jellyfin-api.service';
 import serverDetectionService from '../services/server-detection.service';
+import profileService from '../services/profile.service';
 import { sendSuccess } from '../utils/response.util';
 import { getClientIp } from '../utils/network.util';
 import prisma from '../config/database';
@@ -44,24 +45,20 @@ export class JellyfinProxyController {
   async getResume(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const profileId = req.user?.profileId;
+      const userId = req.user?.userId;
       const clientIp = getClientIp(req);
 
-      if (!profileId) {
+      if (!profileId || !userId) {
         throw new Error('Profile not selected');
       }
 
-      const profile = await prisma.profile.findUnique({
-        where: { id: profileId },
-      });
-
-      if (!profile) {
-        throw new Error('Profile not found');
-      }
+      // Ensure profile has a Jellyfin user - create one if needed
+      const jellyfinUserId = await profileService.ensureJellyfinUser(profileId, userId, clientIp);
 
       const detectedServer = await serverDetectionService.detectBestServer(clientIp);
       const jellyfinApi = new JellyfinApiService(detectedServer.server.url);
 
-      const items = await jellyfinApi.getResumeItems(profile.jellyfinUserId);
+      const items = await jellyfinApi.getResumeItems(jellyfinUserId);
 
       sendSuccess(res, items, 200);
     } catch (error) {
@@ -75,28 +72,24 @@ export class JellyfinProxyController {
   async getItemsByType(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const profileId = req.user?.profileId;
+      const userId = req.user?.userId;
       const clientIp = getClientIp(req);
       const { type } = req.params;
       const limit = parseInt(req.query.limit as string) || 20;
       const startIndex = parseInt(req.query.startIndex as string) || 0;
 
-      if (!profileId) {
+      if (!profileId || !userId) {
         throw new Error('Profile not selected');
       }
 
-      const profile = await prisma.profile.findUnique({
-        where: { id: profileId },
-      });
-
-      if (!profile) {
-        throw new Error('Profile not found');
-      }
+      // Ensure profile has a Jellyfin user - create one if needed
+      const jellyfinUserId = await profileService.ensureJellyfinUser(profileId, userId, clientIp);
 
       const detectedServer = await serverDetectionService.detectBestServer(clientIp);
       const jellyfinApi = new JellyfinApiService(detectedServer.server.url);
 
       const result = await jellyfinApi.getItemsByType(
-        profile.jellyfinUserId,
+        jellyfinUserId,
         type,
         limit,
         startIndex

@@ -24,7 +24,13 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
 
     const payload = verifyAccessToken(token);
 
-    req.user = payload;
+    // Get profile ID from header if available
+    const profileId = req.headers['x-profile-id'] as string | undefined;
+
+    req.user = {
+      ...payload,
+      profileId,
+    };
 
     next();
   } catch (error) {

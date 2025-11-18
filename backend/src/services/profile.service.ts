@@ -208,9 +208,45 @@ export class ProfileService {
     // The frontend will use quick connect or authenticate directly with Jellyfin
 
     return {
-      jellyfinUserId: profile.jellyfinUserId,
+      jellyfinUserId: profile.jellyfinUserId!,
       jellyfinAccessToken: '', // Frontend will authenticate with Jellyfin directly
     };
+  }
+
+  /**
+   * Ensure profile has a Jellyfin user - create one if it doesn't exist
+   */
+  async ensureJellyfinUser(profileId: string, userId: string, clientIp: string): Promise<string> {
+    const profile = await this.getProfileById(profileId, userId);
+
+    // If profile already has a Jellyfin user ID, return it
+    if (profile.jellyfinUserId) {
+      return profile.jellyfinUserId;
+    }
+
+    // Profile doesn't have a Jellyfin user, create one
+    try {
+      const detectedServer = await serverDetectionService.detectBestServer(clientIp);
+      const jellyfinApi = new JellyfinApiService(detectedServer.server.url);
+
+      // Create user in Jellyfin with the profile's name
+      const jellyfinUser = await jellyfinApi.createUser(profile.name);
+
+      // Update profile with Jellyfin user ID
+      const updatedProfile = await prisma.profile.update({
+        where: { id: profileId },
+        data: { jellyfinUserId: jellyfinUser.Id },
+      });
+
+      logger.info(
+        `Created Jellyfin user for profile ${profileId}: ${jellyfinUser.Id} on server ${detectedServer.server.name}`
+      );
+
+      return updatedProfile.jellyfinUserId!;
+    } catch (error: any) {
+      logger.error(`Failed to create Jellyfin user for profile ${profileId}: ${error.message}`);
+      throw new Error(`Failed to create Jellyfin user: ${error.message}`);
+    }
   }
 
   /**
