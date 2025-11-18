@@ -96,7 +96,15 @@
       </div>
     </div>
 
-    <!-- Item Details Modal -->
+    <!-- Series Details Modal -->
+    <SeriesDetailsModal
+      v-if="selectedSeries"
+      :series="selectedSeries"
+      @close="selectedSeries = null"
+      @play-episode="playEpisode"
+    />
+
+    <!-- Item Details Modal (for movies) -->
     <ItemDetailsModal
       v-if="selectedItem"
       :item="selectedItem"
@@ -113,11 +121,13 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth';
 import jellyfinService from '@/services/jellyfin';
 import ItemDetailsModal from '@/components/ItemDetailsModal.vue';
+import SeriesDetailsModal from '@/components/SeriesDetailsModal.vue';
 
 export default {
   name: 'Search',
   components: {
     ItemDetailsModal,
+    SeriesDetailsModal,
   },
   setup() {
     const router = useRouter();
@@ -125,6 +135,7 @@ export default {
 
     const searchQuery = ref('');
     const results = ref([]);
+    const selectedSeries = ref(null);
     const loading = ref(false);
     const selectedItem = ref(null);
     const searchTimeout = ref(null);
@@ -166,17 +177,40 @@ export default {
     };
 
     const showItemInfo = async (item) => {
+      if (item.Type === 'Series') {
+        showSeriesDetails(item);
+      } else {
+        try {
+          const details = await jellyfinService.getItemDetails(item.Id);
+          selectedItem.value = details;
+        } catch (error) {
+          console.error('Failed to load item details:', error);
+          selectedItem.value = item;
+        }
+      }
+    };
+
+    const showSeriesDetails = async (series) => {
       try {
-        const details = await jellyfinService.getItemDetails(item.Id);
-        selectedItem.value = details;
+        const details = await jellyfinService.getItemDetails(series.Id);
+        selectedSeries.value = details;
       } catch (error) {
-        console.error('Failed to load item details:', error);
-        selectedItem.value = item;
+        console.error('Failed to load series details:', error);
+        selectedSeries.value = series;
       }
     };
 
     const playItem = (item) => {
-      router.push({ name: 'Watch', params: { id: item.Id } });
+      if (item.Type === 'Series') {
+        showSeriesDetails(item);
+      } else {
+        router.push({ name: 'Watch', params: { id: item.Id } });
+      }
+    };
+
+    const playEpisode = (episode) => {
+      selectedSeries.value = null;
+      router.push({ name: 'Watch', params: { id: episode.Id } });
     };
 
     return {
@@ -184,11 +218,14 @@ export default {
       results,
       loading,
       selectedItem,
+      selectedSeries,
       currentProfile,
       onSearchInput,
       getImageUrl,
       showItemInfo,
+      showSeriesDetails,
       playItem,
+      playEpisode,
     };
   },
 };

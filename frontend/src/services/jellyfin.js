@@ -68,7 +68,8 @@ export async function getItemsByType(type, limit = 20, startIndex = 0) {
 export async function searchItems(searchTerm, limit = 20) {
   try {
     const response = await api.get(`/jellyfin/search?q=${encodeURIComponent(searchTerm)}&limit=${limit}`);
-    return response.data.data.Items || [];
+    // Search API returns SearchHints array, not Items
+    return response.data.data.SearchHints || [];
   } catch (error) {
     console.error('Search failed:', error);
     return [];
