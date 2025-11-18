@@ -36,8 +36,8 @@ async function main() {
     create: {
       userId: admin.id,
       name: 'Administrador',
-      isKidsProfile: false,
       jellyfinUserId: '', // Will be set when first used
+      isPrimary: true,
     },
   });
 
@@ -135,8 +135,8 @@ async function main() {
     create: {
       userId: demoUser.id,
       name: 'Demo',
-      isKidsProfile: false,
       jellyfinUserId: '', // Will be set when first used
+      isPrimary: true,
     },
   });
 
