@@ -148,38 +148,9 @@ export class AdminController {
    */
   async getAllPlans(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const plans = planService.getAllPlans();
+      const plans = await planService.getAllPlans();
 
       sendSuccess(res, { plans }, 200);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Get plan comparison
-   */
-  async getPlanComparison(_req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const comparison = planService.getPlanComparison();
-
-      sendSuccess(res, comparison, 200);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Change user's plan
-   */
-  async changeUserPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { userId } = req.params;
-      const { plan } = req.body;
-
-      await planService.changeUserPlan(userId, plan as Plan);
-
-      sendSuccess(res, { message: 'Plan changed successfully' }, 200);
     } catch (error) {
       next(error);
     }

@@ -116,7 +116,7 @@ export class PlanService {
    * Update plan configuration
    */
   async updatePlan(id: string, data: UpdatePlanConfigData) {
-    const plan = await this.getPlanById(id);
+    await this.getPlanById(id);
 
     return await prisma.planConfig.update({
       where: { id },
@@ -128,7 +128,7 @@ export class PlanService {
    * Delete plan configuration
    */
   async deletePlan(id: string) {
-    const plan = await this.getPlanById(id);
+    await this.getPlanById(id);
 
     await prisma.planConfig.delete({
       where: { id },

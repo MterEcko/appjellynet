@@ -4,7 +4,6 @@ import serverDetectionService from '../services/server-detection.service';
 import profileService from '../services/profile.service';
 import { sendSuccess } from '../utils/response.util';
 import { getClientIp } from '../utils/network.util';
-import prisma from '../config/database';
 
 export class JellyfinProxyController {
   /**

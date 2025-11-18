@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import adService from '../services/ad.service';
-import { sendSuccess, sendError } from '../utils/response.util';
+import { sendSuccess } from '../utils/response.util';
 
 export class AdController {
   /**
@@ -48,13 +48,8 @@ export class AdController {
   async getAdForPlayback(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { adType } = req.params;
-      const { userPlan, region } = req.query;
 
-      const ad = await adService.getAdForPlayback(
-        adType as any,
-        userPlan as any,
-        region as string | undefined
-      );
+      const ad = await adService.getAdForPlayback(adType as any);
 
       if (!ad) {
         sendSuccess(res, null, 200);
@@ -146,7 +141,7 @@ export class AdController {
   /**
    * Get all ads analytics
    */
-  async getAllAdsAnalytics(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getAllAdsAnalytics(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const analytics = await adService.getAllAdsAnalytics();
       sendSuccess(res, analytics, 200);

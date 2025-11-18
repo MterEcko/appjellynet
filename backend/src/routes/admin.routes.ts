@@ -17,8 +17,6 @@ router.get('/audit-logs', adminController.getAuditLogs);
 
 // Plans management
 router.get('/plans', adminController.getAllPlans);
-router.get('/plans/comparison', adminController.getPlanComparison);
-router.put('/users/:userId/plan', adminController.changeUserPlan);
 
 // Account management
 router.get('/accounts', adminController.getAllAccounts);

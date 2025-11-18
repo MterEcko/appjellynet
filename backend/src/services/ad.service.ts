@@ -1,37 +1,37 @@
 import prisma from '../config/database';
-import { AdType, Plan } from '@prisma/client';
-import { NotFoundError, BadRequestError } from '../utils/error.util';
+import { AdType } from '@prisma/client';
+import { NotFoundError } from '../utils/error.util';
 
 export interface CreateAdData {
+  type: AdType;
   title: string;
-  description?: string;
-  adType: AdType;
-  videoUrl: string;
-  thumbnailUrl?: string;
-  clickUrl?: string;
-  targetPlans?: Plan[];
-  targetRegions?: string[];
-  duration: number;
+  campaignName?: string;
+  filePath?: string;
+  url?: string;
+  thumbnailPath?: string;
+  duration?: number;
   skipAfter?: number;
+  weight?: number;
+  clickUrl?: string;
+  targetAudience?: any;
   startDate?: Date;
   endDate?: Date;
-  priority?: number;
 }
 
 export interface UpdateAdData {
+  type?: AdType;
   title?: string;
-  description?: string;
-  adType?: AdType;
-  videoUrl?: string;
-  thumbnailUrl?: string;
-  clickUrl?: string;
-  targetPlans?: Plan[];
-  targetRegions?: string[];
+  campaignName?: string;
+  filePath?: string;
+  url?: string;
+  thumbnailPath?: string;
   duration?: number;
   skipAfter?: number;
+  weight?: number;
+  clickUrl?: string;
+  targetAudience?: any;
   startDate?: Date;
   endDate?: Date;
-  priority?: number;
   isActive?: boolean;
 }
 
@@ -39,12 +39,13 @@ export interface RecordAdViewData {
   adId: string;
   userId?: string;
   profileId?: string;
-  itemId: string;
-  itemType: string;
-  wasCompleted: boolean;
-  wasSkipped: boolean;
-  wasClicked: boolean;
-  watchDuration: number;
+  contentId?: string;
+  completed: boolean;
+  skipped: boolean;
+  clicked?: boolean;
+  watchedSeconds: number;
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 export class AdService {
@@ -60,7 +61,7 @@ export class AdService {
 
     return await prisma.ad.findMany({
       where,
-      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ weight: 'desc' }, { createdAt: 'desc' }],
     });
   }
 
@@ -87,63 +88,50 @@ export class AdService {
 
     return await prisma.ad.findMany({
       where: {
-        adType,
+        type: adType,
         isActive: true,
         OR: [
           { startDate: null },
           { startDate: { lte: now } },
         ],
-        AND: [
-          {
-            OR: [
-              { endDate: null },
-              { endDate: { gte: now } },
-            ],
-          },
-        ],
       },
-      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ weight: 'desc' }, { createdAt: 'desc' }],
     });
   }
 
   /**
    * Get ad for playback (with targeting)
    */
-  async getAdForPlayback(adType: AdType, userPlan: Plan, region?: string) {
+  async getAdForPlayback(adType: AdType) {
     const now = new Date();
 
     const ads = await prisma.ad.findMany({
       where: {
-        adType,
+        type: adType,
         isActive: true,
         OR: [
-          { targetPlans: { isEmpty: true } },
-          { targetPlans: { has: userPlan } },
-        ],
-        startDate: { lte: now },
-        OR: [
-          { endDate: null },
-          { endDate: { gte: now } },
+          { startDate: null },
+          { startDate: { lte: now } },
         ],
       },
-      orderBy: [{ priority: 'desc' }, { impressions: 'asc' }],
+      orderBy: [{ weight: 'desc' }, { impressions: 'asc' }],
       take: 10,
     });
 
-    // Filter by region if specified
-    let filteredAds = ads;
-    if (region) {
-      filteredAds = ads.filter(ad =>
-        ad.targetRegions.length === 0 || ad.targetRegions.includes(region)
-      );
-    }
+    // Filter by date range
+    const validAds = ads.filter(ad => {
+      if (ad.endDate && ad.endDate < now) {
+        return false;
+      }
+      return true;
+    });
 
-    // Select random ad from top candidates
-    if (filteredAds.length === 0) {
+    // Select random ad from top candidates weighted by priority
+    if (validAds.length === 0) {
       return null;
     }
 
-    const selectedAd = filteredAds[Math.floor(Math.random() * Math.min(3, filteredAds.length))];
+    const selectedAd = validAds[Math.floor(Math.random() * Math.min(3, validAds.length))];
 
     // Increment impressions
     await prisma.ad.update({
@@ -160,19 +148,19 @@ export class AdService {
   async createAd(data: CreateAdData) {
     return await prisma.ad.create({
       data: {
+        type: data.type,
         title: data.title,
-        description: data.description,
-        adType: data.adType,
-        videoUrl: data.videoUrl,
-        thumbnailUrl: data.thumbnailUrl,
-        clickUrl: data.clickUrl,
-        targetPlans: data.targetPlans || [],
-        targetRegions: data.targetRegions || [],
+        campaignName: data.campaignName,
+        filePath: data.filePath,
+        url: data.url,
+        thumbnailPath: data.thumbnailPath,
         duration: data.duration,
         skipAfter: data.skipAfter,
+        weight: data.weight ?? 5,
+        clickUrl: data.clickUrl,
+        targetAudience: data.targetAudience,
         startDate: data.startDate,
         endDate: data.endDate,
-        priority: data.priority || 0,
       },
     });
   }
@@ -218,7 +206,7 @@ export class AdService {
    * Record ad view
    */
   async recordAdView(data: RecordAdViewData) {
-    const ad = await this.getAdById(data.adId);
+    await this.getAdById(data.adId);
 
     // Create view record
     const view = await prisma.adView.create({
@@ -226,25 +214,25 @@ export class AdService {
         adId: data.adId,
         userId: data.userId,
         profileId: data.profileId,
-        itemId: data.itemId,
-        itemType: data.itemType,
-        wasCompleted: data.wasCompleted,
-        wasSkipped: data.wasSkipped,
-        wasClicked: data.wasClicked,
-        watchDuration: data.watchDuration,
+        contentId: data.contentId,
+        impression: true,
+        started: true,
+        completed: data.completed,
+        skipped: data.skipped,
+        clicked: data.clicked ?? false,
+        watchedSeconds: data.watchedSeconds,
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent,
       },
     });
 
     // Update ad analytics
     const updateData: any = {};
-    if (data.wasCompleted) {
+    if (data.completed) {
       updateData.completions = { increment: 1 };
     }
-    if (data.wasSkipped) {
+    if (data.skipped) {
       updateData.skips = { increment: 1 };
-    }
-    if (data.wasClicked) {
-      updateData.clicks = { increment: 1 };
     }
 
     if (Object.keys(updateData).length > 0) {
@@ -267,12 +255,16 @@ export class AdService {
       where: { adId: id },
     });
 
+    const clicks = await prisma.adView.count({
+      where: { adId: id, clicked: true },
+    });
+
     const completionRate = ad.impressions > 0
       ? (ad.completions / ad.impressions) * 100
       : 0;
 
     const clickThroughRate = ad.impressions > 0
-      ? (ad.clicks / ad.impressions) * 100
+      ? (clicks / ad.impressions) * 100
       : 0;
 
     const skipRate = ad.impressions > 0
@@ -284,7 +276,7 @@ export class AdService {
       totalViews,
       impressions: ad.impressions,
       completions: ad.completions,
-      clicks: ad.clicks,
+      clicks,
       skips: ad.skips,
       completionRate: Math.round(completionRate * 100) / 100,
       clickThroughRate: Math.round(clickThroughRate * 100) / 100,
@@ -306,22 +298,26 @@ export class AdService {
           where: { adId: ad.id },
         });
 
+        const clicks = await prisma.adView.count({
+          where: { adId: ad.id, clicked: true },
+        });
+
         const completionRate = ad.impressions > 0
           ? Math.round((ad.completions / ad.impressions) * 10000) / 100
           : 0;
 
         const clickThroughRate = ad.impressions > 0
-          ? Math.round((ad.clicks / ad.impressions) * 10000) / 100
+          ? Math.round((clicks / ad.impressions) * 10000) / 100
           : 0;
 
         return {
           id: ad.id,
           title: ad.title,
-          adType: ad.adType,
+          type: ad.type,
           isActive: ad.isActive,
           impressions: ad.impressions,
           completions: ad.completions,
-          clicks: ad.clicks,
+          clicks,
           skips: ad.skips,
           totalViews,
           completionRate,

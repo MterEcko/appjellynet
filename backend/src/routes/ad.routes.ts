@@ -1,16 +1,16 @@
 import { Router } from 'express';
 import adController from '../controllers/ad.controller';
-import { authenticate } from '../middleware/auth.middleware';
-import { requireAdmin } from '../middleware/admin.middleware';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 const router = Router();
 
 // Public routes (for playback)
-router.get('/playback/:adType', authenticate, adController.getAdForPlayback);
-router.post('/views', authenticate, adController.recordAdView);
+router.get('/playback/:adType', authMiddleware, adController.getAdForPlayback);
+router.post('/views', authMiddleware, adController.recordAdView);
 
 // Admin routes
-router.use(requireAdmin);
+router.use(adminMiddleware);
 
 // Get all ads
 router.get('/', adController.getAllAds);

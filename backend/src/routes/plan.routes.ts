@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import planController from '../controllers/plan.controller';
-import { authenticate } from '../middleware/auth.middleware';
-import { requireAdmin } from '../middleware/admin.middleware';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { adminMiddleware } from '../middlewares/admin.middleware';
 
 const router = Router();
 
 // All routes require authentication and admin role
-router.use(authenticate);
-router.use(requireAdmin);
+router.use(authMiddleware);
+router.use(adminMiddleware);
 
 // Get all plans
 router.get('/', planController.getAllPlans);

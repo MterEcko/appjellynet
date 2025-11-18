@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import planService from '../services/plan.service';
-import { sendSuccess, sendError } from '../utils/response.util';
+import { sendSuccess } from '../utils/response.util';
 
 export class PlanController {
   /**
@@ -96,7 +96,7 @@ export class PlanController {
   /**
    * Initialize default plans
    */
-  async initializeDefaultPlans(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async initializeDefaultPlans(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const plans = await planService.initializeDefaultPlans();
       sendSuccess(res, { message: 'Default plans initialized', plans }, 200);
