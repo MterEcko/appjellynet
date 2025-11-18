@@ -6,6 +6,7 @@ import profileRoutes from './profile.routes';
 import adminRoutes from './admin.routes';
 import planRoutes from './plan.routes';
 import adRoutes from './ad.routes';
+import uploadRoutes from './upload.routes';
 import jellyfinRoutes from './jellyfin.routes';
 import watchlistRoutes from './watchlist.routes';
 import favoriteRoutes from './favorite.routes';
@@ -32,5 +33,6 @@ router.use('/favorites', favoriteRoutes);
 // Admin routes
 router.use('/admin', adminRoutes);
 router.use('/plans', planRoutes);
+router.use('/upload', uploadRoutes);
 
 export default router;

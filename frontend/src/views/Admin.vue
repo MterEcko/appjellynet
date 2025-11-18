@@ -111,6 +111,16 @@
         </div>
       </div>
 
+      <!-- Plans Tab -->
+      <div v-if="activeTab === 'plans'">
+        <AdminPlans />
+      </div>
+
+      <!-- Ads Tab -->
+      <div v-if="activeTab === 'ads'">
+        <AdminAds />
+      </div>
+
       <!-- Accounts Tab -->
       <div v-if="activeTab === 'accounts'" class="bg-dark-lighter rounded-lg border border-gray-800">
         <!-- Toolbar -->
@@ -456,9 +466,15 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/store/auth';
 import api from '@/services/api';
+import AdminAds from '@/components/AdminAds.vue';
+import AdminPlans from '@/components/AdminPlans.vue';
 
 export default {
   name: 'Admin',
+  components: {
+    AdminAds,
+    AdminPlans,
+  },
   setup() {
     const authStore = useAuthStore();
     const currentProfile = computed(() => authStore.currentProfile);

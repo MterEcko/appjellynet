@@ -86,6 +86,9 @@ export default {
       try {
         loading.value = true;
 
+        // Wait for next tick to ensure DOM is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // Initialize Video.js player first
         player = videojs(videoPlayer.value, {
           fluid: true,
@@ -99,6 +102,11 @@ export default {
               inline: false
             },
             pictureInPictureToggle: true,
+            remainingTimeDisplay: true,
+            progressControl: true,
+            playToggle: true,
+            volumePanel: true,
+            fullscreenToggle: true,
           },
           html5: {
             vhs: {
@@ -117,16 +125,28 @@ export default {
           src: contentUrl,
         });
 
+        // Ensure controls are visible
+        player.controls(true);
+
         player.on('loadedmetadata', () => {
           contentDuration = player.duration();
+          loading.value = false;
           // Optional: Try to show ads only if configured
           // calculateMidrollPositions();
         });
 
+        player.on('error', (error) => {
+          console.error('Player error:', error);
+          loading.value = false;
+        });
+
+        // Set loading to false after 2 seconds as fallback
+        setTimeout(() => {
+          loading.value = false;
+        }, 2000);
+
         // Optional: Mid-roll ads (commented out for now)
         // player.on('timeupdate', checkMidrollPositions);
-
-        loading.value = false;
 
         // Optional: Try to show pre-roll ad (non-blocking)
         // showPrerollAd().catch(err => console.log('No pre-roll ad:', err));
@@ -398,6 +418,18 @@ export default {
 .video-js {
   width: 100%;
   height: 100%;
+}
+
+/* Ensure controls are always visible */
+.video-js .vjs-control-bar {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Make sure controls appear on top */
+.video-js .vjs-control-bar {
+  z-index: 100 !important;
 }
 
 .ad-overlay {
