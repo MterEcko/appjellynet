@@ -1,6 +1,14 @@
 <template>
   <div class="min-h-screen bg-dark">
-    <!-- Item Details Modal -->
+    <!-- Series Details Modal -->
+    <SeriesDetailsModal
+      v-if="selectedSeries"
+      :series="selectedSeries"
+      @close="selectedSeries = null"
+      @play-episode="playEpisode"
+    />
+
+    <!-- Item Details Modal (for movies) -->
     <ItemDetailsModal
       v-if="selectedItem"
       :item="selectedItem"
@@ -168,6 +176,7 @@ import { useAuthStore } from '@/store/auth';
 import HeroBanner from '@/components/HeroBanner.vue';
 import ContentRow from '@/components/ContentRow.vue';
 import ItemDetailsModal from '@/components/ItemDetailsModal.vue';
+import SeriesDetailsModal from '@/components/SeriesDetailsModal.vue';
 import jellyfinService from '@/services/jellyfin';
 import { useWatchlist } from '@/composables/useWatchlist';
 
@@ -177,6 +186,7 @@ export default {
     HeroBanner,
     ContentRow,
     ItemDetailsModal,
+    SeriesDetailsModal,
   },
   setup() {
     const router = useRouter();
@@ -187,6 +197,7 @@ export default {
     const showProfileMenu = ref(false);
     const loading = ref(true);
     const selectedItem = ref(null);
+    const selectedSeries = ref(null);
     const currentView = ref('home');
 
     const serverUrl = ref('');
@@ -234,23 +245,45 @@ export default {
 
     const playItem = (item) => {
       if (item.Type === 'Series') {
-        // For series, show modal with series details (seasons/episodes)
-        showItemInfo(item);
+        // For series, show series details modal with seasons/episodes
+        showSeriesDetails(item);
       } else {
         // For movies, go directly to the player
         router.push({ name: 'Watch', params: { id: item.Id } });
       }
     };
 
+    const playEpisode = (episode) => {
+      // Close series modal and play episode
+      selectedSeries.value = null;
+      router.push({ name: 'Watch', params: { id: episode.Id } });
+    };
+
     const showItemInfo = async (item) => {
+      if (item.Type === 'Series') {
+        showSeriesDetails(item);
+      } else {
+        try {
+          // Load full item details for movies
+          const details = await jellyfinService.getItemDetails(item.Id);
+          selectedItem.value = details;
+        } catch (error) {
+          console.error('Failed to load item details:', error);
+          // Fallback to basic item info
+          selectedItem.value = item;
+        }
+      }
+    };
+
+    const showSeriesDetails = async (series) => {
       try {
-        // Load full item details
-        const details = await jellyfinService.getItemDetails(item.Id);
-        selectedItem.value = details;
+        // Load full series details
+        const details = await jellyfinService.getItemDetails(series.Id);
+        selectedSeries.value = details;
       } catch (error) {
-        console.error('Failed to load item details:', error);
-        // Fallback to basic item info
-        selectedItem.value = item;
+        console.error('Failed to load series details:', error);
+        // Fallback to basic info
+        selectedSeries.value = series;
       }
     };
 
@@ -301,6 +334,7 @@ export default {
       showProfileMenu,
       loading,
       selectedItem,
+      selectedSeries,
       currentView,
       serverUrl,
       featuredItem,
@@ -311,7 +345,9 @@ export default {
       myListItems,
       currentProfile,
       playItem,
+      playEpisode,
       showItemInfo,
+      showSeriesDetails,
       loadMyList,
       logout,
     };

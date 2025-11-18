@@ -218,9 +218,13 @@ export default {
           // Check watchlist and favorite status
           await checkStatuses();
 
-          // TODO: Implement getSimilarItems in jellyfin service
-          // For now, we'll leave this empty
-          similarItems.value = [];
+          // Load similar items
+          try {
+            similarItems.value = await jellyfinService.getSimilarItems(newItem.Id, 6);
+          } catch (error) {
+            console.error('Failed to load similar items:', error);
+            similarItems.value = [];
+          }
         }
       },
       { immediate: true }

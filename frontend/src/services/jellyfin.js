@@ -157,6 +157,71 @@ export async function reportPlaybackStopped(itemId, positionTicks) {
   }
 }
 
+/**
+ * Get series seasons
+ */
+export async function getSeasons(seriesId) {
+  try {
+    const response = await api.get(`/jellyfin/series/${seriesId}/seasons`);
+    return response.data.data.Items || [];
+  } catch (error) {
+    console.error('Failed to get seasons:', error);
+    return [];
+  }
+}
+
+/**
+ * Get season episodes
+ */
+export async function getEpisodes(seriesId, seasonId) {
+  try {
+    const response = await api.get(`/jellyfin/series/${seriesId}/seasons/${seasonId}/episodes`);
+    return response.data.data.Items || [];
+  } catch (error) {
+    console.error('Failed to get episodes:', error);
+    return [];
+  }
+}
+
+/**
+ * Get similar items
+ */
+export async function getSimilarItems(itemId, limit = 10) {
+  try {
+    const response = await api.get(`/jellyfin/similar/${itemId}?limit=${limit}`);
+    return response.data.data.Items || [];
+  } catch (error) {
+    console.error('Failed to get similar items:', error);
+    return [];
+  }
+}
+
+/**
+ * Get all genres
+ */
+export async function getGenres() {
+  try {
+    const response = await api.get('/jellyfin/genres');
+    return response.data.data.Items || [];
+  } catch (error) {
+    console.error('Failed to get genres:', error);
+    return [];
+  }
+}
+
+/**
+ * Get items by genre
+ */
+export async function getItemsByGenre(genre, type = 'Movie,Series', limit = 50) {
+  try {
+    const response = await api.get(`/jellyfin/genre/${encodeURIComponent(genre)}?type=${type}&limit=${limit}`);
+    return response.data.data.Items || [];
+  } catch (error) {
+    console.error('Failed to get items by genre:', error);
+    return [];
+  }
+}
+
 export default {
   initializeJellyfin,
   getLatestMedia,
@@ -164,6 +229,11 @@ export default {
   getItemsByType,
   searchItems,
   getItemDetails,
+  getSeasons,
+  getEpisodes,
+  getSimilarItems,
+  getGenres,
+  getItemsByGenre,
   getPlaybackUrl,
   getImageUrl,
   getBackdropUrl,

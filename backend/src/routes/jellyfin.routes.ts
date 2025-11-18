@@ -22,6 +22,21 @@ router.get('/search', jellyfinProxyController.search);
 // Get item details
 router.get('/item/:id', jellyfinProxyController.getItem);
 
+// Get series seasons
+router.get('/series/:seriesId/seasons', jellyfinProxyController.getSeasons);
+
+// Get season episodes
+router.get('/series/:seriesId/seasons/:seasonId/episodes', jellyfinProxyController.getEpisodes);
+
+// Get similar items
+router.get('/similar/:itemId', jellyfinProxyController.getSimilar);
+
+// Get all genres
+router.get('/genres', jellyfinProxyController.getGenres);
+
+// Get items by genre
+router.get('/genre/:genre', jellyfinProxyController.getByGenre);
+
 // Report playback progress
 router.post('/playback/progress', jellyfinProxyController.reportProgress);
 

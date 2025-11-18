@@ -196,7 +196,10 @@ export class AccountService {
       const jellyfinApi = new JellyfinApiService(detectedServer.server.url);
 
       for (const profile of user.profiles) {
-        await jellyfinApi.updateUserPassword(profile.jellyfinUserId, newPassword);
+        // Only update if profile has a Jellyfin user
+        if (profile.jellyfinUserId) {
+          await jellyfinApi.updateUserPassword(profile.jellyfinUserId, newPassword);
+        }
       }
 
       logger.info(`Password updated for user ${userId} and all profiles in Jellyfin`);

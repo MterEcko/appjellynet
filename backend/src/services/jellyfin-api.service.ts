@@ -252,6 +252,89 @@ export class JellyfinApiService {
     }
   }
 
+  async getSeasons(userId: string, seriesId: string): Promise<any> {
+    try {
+      const response = await this.api.get(`/Shows/${seriesId}/Seasons`, {
+        params: {
+          userId,
+          fields: 'PrimaryImageAspectRatio,BasicSyncInfo,Overview',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error(`Jellyfin getSeasons error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getEpisodes(userId: string, seriesId: string, seasonId: string): Promise<any> {
+    try {
+      const response = await this.api.get(`/Shows/${seriesId}/Episodes`, {
+        params: {
+          userId,
+          seasonId,
+          fields: 'PrimaryImageAspectRatio,BasicSyncInfo,Overview',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error(`Jellyfin getEpisodes error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getSimilarItems(userId: string, itemId: string, limit: number = 10): Promise<any> {
+    try {
+      const response = await this.api.get(`/Items/${itemId}/Similar`, {
+        params: {
+          userId,
+          limit,
+          fields: 'PrimaryImageAspectRatio,BasicSyncInfo,ProductionYear,Genres,Overview',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error(`Jellyfin getSimilarItems error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getItemsByGenre(userId: string, genre: string, itemType: string = 'Movie,Series', limit: number = 50): Promise<any> {
+    try {
+      const response = await this.api.get(`/Users/${userId}/Items`, {
+        params: {
+          includeItemTypes: itemType,
+          genres: genre,
+          recursive: true,
+          limit,
+          sortBy: 'DateCreated,SortName',
+          sortOrder: 'Descending',
+          fields: 'PrimaryImageAspectRatio,BasicSyncInfo,ProductionYear,Genres,Overview',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error(`Jellyfin getItemsByGenre error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getAllGenres(userId: string): Promise<any> {
+    try {
+      const response = await this.api.get('/Genres', {
+        params: {
+          userId,
+          sortBy: 'SortName',
+          sortOrder: 'Ascending',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error(`Jellyfin getAllGenres error: ${error.message}`);
+      throw error;
+    }
+  }
+
   // Sessions endpoints
   async getSessions(): Promise<any[]> {
     try {

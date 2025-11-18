@@ -153,10 +153,13 @@ export class ProfileService {
 
     // Detect server and delete from Jellyfin
     try {
-      const detectedServer = await serverDetectionService.detectBestServer(clientIp);
-      const jellyfinApi = new JellyfinApiService(detectedServer.server.url);
+      // Only delete from Jellyfin if profile has a Jellyfin user
+      if (profile.jellyfinUserId) {
+        const detectedServer = await serverDetectionService.detectBestServer(clientIp);
+        const jellyfinApi = new JellyfinApiService(detectedServer.server.url);
 
-      await jellyfinApi.deleteUser(profile.jellyfinUserId);
+        await jellyfinApi.deleteUser(profile.jellyfinUserId);
+      }
     } catch (error: any) {
       logger.error(`Failed to delete Jellyfin user: ${error.message}`);
       // Continue with deletion even if Jellyfin deletion fails
