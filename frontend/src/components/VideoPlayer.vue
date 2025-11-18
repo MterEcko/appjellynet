@@ -21,8 +21,6 @@
     <video
       ref="videoPlayer"
       class="video-js vjs-default-skin vjs-big-play-centered"
-      controls
-      preload="auto"
       @ended="handleVideoEnded"
       @timeupdate="handleTimeUpdate"
       @play="handlePlay"
@@ -407,7 +405,7 @@ export default {
 };
 </script>
 
-<style scoped>
+<style>
 .video-player-container {
   position: relative;
   width: 100%;
@@ -420,16 +418,36 @@ export default {
   height: 100%;
 }
 
-/* Ensure controls are always visible */
+/* Force controls to be visible */
+.video-js.vjs-has-started .vjs-control-bar {
+  display: flex !important;
+}
+
 .video-js .vjs-control-bar {
   display: flex !important;
   opacity: 1 !important;
   visibility: visible !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.video-js.vjs-user-inactive.vjs-playing .vjs-control-bar {
+  opacity: 0;
+  transition: opacity 1s;
+}
+
+.video-js.vjs-user-active.vjs-playing .vjs-control-bar,
+.video-js.vjs-paused .vjs-control-bar {
+  opacity: 1 !important;
 }
 
 /* Make sure controls appear on top */
 .video-js .vjs-control-bar {
   z-index: 100 !important;
+}
+
+/* Ensure big play button is visible */
+.video-js .vjs-big-play-button {
+  display: block !important;
 }
 
 .ad-overlay {
