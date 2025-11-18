@@ -58,7 +58,7 @@ class EmailService {
   private async sendEmail(options: EmailOptions): Promise<void> {
     try {
       const info = await this.transporter.sendMail({
-        from: `"${env.SMTP_FROM_NAME}" <${env.SMTP_FROM_EMAIL}>`,
+        from: env.SMTP_FROM,
         to: options.to,
         subject: options.subject,
         text: options.text,

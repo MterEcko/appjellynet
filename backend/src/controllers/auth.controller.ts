@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import authService from '../services/auth.service';
 import { sendSuccess, sendError } from '../utils/response.util';
-import { AppError } from '../utils/error.util';
 
 export class AuthController {
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -34,7 +33,8 @@ export class AuthController {
       const { currentPassword, newPassword } = req.body;
 
       if (!userId) {
-        return sendError(res, 'UNAUTHORIZED', 'User not authenticated', 401);
+        sendError(res, 'UNAUTHORIZED', 'User not authenticated', 401);
+        return;
       }
 
       await authService.changePassword(userId, currentPassword, newPassword);

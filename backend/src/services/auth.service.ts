@@ -1,7 +1,7 @@
 import prisma from '../config/database';
 import { hashPassword, comparePassword } from '../utils/bcrypt.util';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.util';
-import { UnauthorizedError, ConflictError, NotFoundError } from '../utils/error.util';
+import { UnauthorizedError, NotFoundError } from '../utils/error.util';
 import { User } from '@prisma/client';
 
 export interface LoginResponse {
@@ -134,7 +134,7 @@ export class AuthService {
     // This will be implemented later with email service
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<void> {
+  async resetPassword(_token: string, _newPassword: string): Promise<void> {
     // TODO: Verify token and reset password
     // This will be implemented later
   }

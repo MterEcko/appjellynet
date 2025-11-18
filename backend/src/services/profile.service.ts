@@ -2,7 +2,6 @@ import prisma from '../config/database';
 import { NotFoundError, ConflictError, ValidationError } from '../utils/error.util';
 import JellyfinApiService from './jellyfin-api.service';
 import serverDetectionService from './server-detection.service';
-import { hashPassword } from '../utils/bcrypt.util';
 import { logger } from '../utils/logger.util';
 import { Profile, Plan } from '@prisma/client';
 
@@ -114,7 +113,7 @@ export class ProfileService {
     data: Partial<CreateProfileData>
   ): Promise<Profile> {
     // Verify ownership
-    const profile = await this.getProfileById(profileId, userId);
+    await this.getProfileById(profileId, userId);
 
     // Update in database
     const updatedProfile = await prisma.profile.update({

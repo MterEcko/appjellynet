@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import env from '../config/env';
 import { logger } from '../utils/logger.util';
 
@@ -40,7 +40,7 @@ export interface JellyfinSystemInfo {
 export class JellyfinApiService {
   private api: AxiosInstance;
 
-  constructor(private baseUrl: string) {
+  constructor(baseUrl: string) {
     this.api = axios.create({
       baseURL: baseUrl,
       headers: {
@@ -208,7 +208,7 @@ export class JellyfinApiService {
     }
   }
 
-  async reportPlaybackStart(userId: string, itemId: string, sessionId: string): Promise<void> {
+  async reportPlaybackStart(_userId: string, itemId: string, sessionId: string): Promise<void> {
     try {
       await this.api.post('/Sessions/Playing', {
         ItemId: itemId,
@@ -223,7 +223,7 @@ export class JellyfinApiService {
   }
 
   async reportPlaybackProgress(
-    userId: string,
+    _userId: string,
     itemId: string,
     sessionId: string,
     positionTicks: number
@@ -242,7 +242,7 @@ export class JellyfinApiService {
   }
 
   async reportPlaybackStopped(
-    userId: string,
+    _userId: string,
     itemId: string,
     sessionId: string,
     positionTicks: number
