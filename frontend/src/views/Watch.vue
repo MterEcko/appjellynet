@@ -1,8 +1,19 @@
 <template>
   <div class="watch-page">
+    <!-- Media Source Selector (if multiple sources) -->
+    <div v-if="mediaSources.length > 1" class="source-selector">
+      <label>Fuente de Video:</label>
+      <select v-model="selectedSourceIndex" @change="changeMediaSource" class="source-select">
+        <option v-for="(source, index) in mediaSources" :key="source.Id" :value="index">
+          {{ source.Name || `Fuente ${index + 1}` }} ({{ formatSize(source.Size) }})
+        </option>
+      </select>
+    </div>
+
     <!-- Video Player -->
     <VideoPlayer
       v-if="itemDetails && serverUrl"
+      :key="mediaSourceId"
       :item-id="itemId"
       :server-url="serverUrl"
       :media-source-id="mediaSourceId"
@@ -66,6 +77,8 @@ export default {
     const serverUrl = ref('');
     const mediaSourceId = ref('');
     const jellyfinToken = ref('');
+    const mediaSources = ref([]);
+    const selectedSourceIndex = ref(0);
 
     /**
      * Load item details and prepare playback
@@ -81,9 +94,10 @@ export default {
         // Get item details
         itemDetails.value = await jellyfinService.getItemDetails(itemId.value);
 
-        // Get media source
+        // Get media sources
         if (itemDetails.value.MediaSources && itemDetails.value.MediaSources.length > 0) {
-          mediaSourceId.value = itemDetails.value.MediaSources[0].Id;
+          mediaSources.value = itemDetails.value.MediaSources;
+          mediaSourceId.value = mediaSources.value[selectedSourceIndex.value].Id;
         } else {
           throw new Error('No media sources available');
         }
@@ -122,6 +136,22 @@ export default {
       router.back();
     };
 
+    /**
+     * Change media source
+     */
+    const changeMediaSource = () => {
+      mediaSourceId.value = mediaSources.value[selectedSourceIndex.value].Id;
+    };
+
+    /**
+     * Format file size
+     */
+    const formatSize = (bytes) => {
+      if (!bytes) return 'N/A';
+      const gb = bytes / (1024 * 1024 * 1024);
+      return `${gb.toFixed(2)} GB`;
+    };
+
     onMounted(() => {
       loadItemDetails();
     });
@@ -134,9 +164,13 @@ export default {
       serverUrl,
       mediaSourceId,
       jellyfinToken,
+      mediaSources,
+      selectedSourceIndex,
       handleVideoEnded,
       handleError,
       goBack,
+      changeMediaSource,
+      formatSize,
     };
   },
 };
@@ -217,5 +251,44 @@ export default {
 
 .back-button:hover {
   background: rgba(0, 0, 0, 0.9);
+}
+
+.source-selector {
+  position: fixed;
+  top: 20px;
+  right: 80px;
+  z-index: 1001;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 10px 15px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.source-selector label {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.source-select {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 200px;
+}
+
+.source-select:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.source-select option {
+  background: #1a1a1a;
+  color: white;
 }
 </style>

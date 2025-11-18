@@ -86,17 +86,27 @@ export default {
       try {
         loading.value = true;
 
-        // Show pre-roll ad first
-        await showPrerollAd();
-
-        // Initialize Video.js player
+        // Initialize Video.js player first
         player = videojs(videoPlayer.value, {
           fluid: true,
           aspectRatio: '16:9',
-          playbackRates: [0.5, 1, 1.25, 1.5, 2],
+          controls: true,
+          autoplay: false,
+          preload: 'auto',
+          playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
           controlBar: {
-            volumePanel: { inline: false },
+            volumePanel: {
+              inline: false
+            },
+            pictureInPictureToggle: true,
           },
+          html5: {
+            vhs: {
+              overrideNative: true
+            },
+            nativeAudioTracks: false,
+            nativeVideoTracks: false
+          }
         });
 
         // Load content
@@ -109,12 +119,17 @@ export default {
 
         player.on('loadedmetadata', () => {
           contentDuration = player.duration();
-          calculateMidrollPositions();
+          // Optional: Try to show ads only if configured
+          // calculateMidrollPositions();
         });
 
-        player.on('timeupdate', checkMidrollPositions);
+        // Optional: Mid-roll ads (commented out for now)
+        // player.on('timeupdate', checkMidrollPositions);
 
         loading.value = false;
+
+        // Optional: Try to show pre-roll ad (non-blocking)
+        // showPrerollAd().catch(err => console.log('No pre-roll ad:', err));
 
       } catch (error) {
         console.error('Failed to initialize player:', error);
