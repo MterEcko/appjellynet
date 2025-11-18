@@ -24,6 +24,25 @@ async function main() {
 
   console.log('✅ Admin user created:', admin.email);
 
+  // Create default profile for admin
+  const adminProfile = await prisma.profile.upsert({
+    where: {
+      userId_name: {
+        userId: admin.id,
+        name: 'Administrador',
+      },
+    },
+    update: {},
+    create: {
+      userId: admin.id,
+      name: 'Administrador',
+      isKidsProfile: false,
+      jellyfinUserId: '', // Will be set when first used
+    },
+  });
+
+  console.log('✅ Admin profile created:', adminProfile.name);
+
   // Create Jellyfin servers
   // Configuración específica para tu red
   const servers = [
@@ -103,6 +122,25 @@ async function main() {
   });
 
   console.log('✅ Demo user created:', demoUser.email);
+
+  // Create default profile for demo user
+  const demoProfile = await prisma.profile.upsert({
+    where: {
+      userId_name: {
+        userId: demoUser.id,
+        name: 'Demo',
+      },
+    },
+    update: {},
+    create: {
+      userId: demoUser.id,
+      name: 'Demo',
+      isKidsProfile: false,
+      jellyfinUserId: '', // Will be set when first used
+    },
+  });
+
+  console.log('✅ Demo profile created:', demoProfile.name);
 
   console.log('✨ Seeding completed successfully!');
 }
