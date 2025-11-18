@@ -186,6 +186,8 @@ export class JellyfinApiService {
       const response = await this.api.get(`/Users/${userId}/Items/Latest`, {
         params: {
           limit,
+          fields: 'PrimaryImageAspectRatio,BasicSyncInfo,ProductionYear,Genres,Overview',
+          enableImageTypes: 'Primary,Backdrop,Thumb',
         },
       });
       return response.data;
@@ -214,8 +216,12 @@ export class JellyfinApiService {
       const response = await this.api.get(`/Users/${userId}/Items`, {
         params: {
           includeItemTypes: type,
+          recursive: true, // Search recursively through libraries
           limit,
           startIndex,
+          sortBy: 'DateCreated,SortName',
+          sortOrder: 'Descending',
+          fields: 'PrimaryImageAspectRatio,BasicSyncInfo,ProductionYear,Genres,Overview',
         },
       });
       return response.data;
