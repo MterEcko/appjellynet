@@ -3,7 +3,6 @@ import adService from '../services/ad.service';
 import { sendSuccess, sendError } from '../utils/response.util';
 import { AdType } from '@prisma/client';
 import { z } from 'zod';
-import path from 'path';
 
 // Validation schemas
 const createAdSchema = z.object({

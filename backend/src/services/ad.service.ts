@@ -1,7 +1,7 @@
 import prisma from '../config/database';
 import { Ad, AdType, Prisma } from '@prisma/client';
 import { logger } from '../utils/logger.util';
-import { BadRequestError, NotFoundError } from '../utils/error.util';
+import { NotFoundError } from '../utils/error.util';
 import fs from 'fs/promises';
 import path from 'path';
 

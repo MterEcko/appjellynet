@@ -1,5 +1,5 @@
 import prisma from '../config/database';
-import { NotFoundError, UnauthorizedError } from '../utils/error.util';
+import { NotFoundError } from '../utils/error.util';
 import { User, Plan, AccountType, AccountStatus } from '@prisma/client';
 import { hashPassword } from '../utils/bcrypt.util';
 import profileService from './profile.service';

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import serverDetectionService from '../services/server-detection.service';
-import { sendSuccess, sendError } from '../utils/response.util';
+import { sendSuccess } from '../utils/response.util';
 import { getClientIp } from '../utils/network.util';
 import prisma from '../config/database';
 
@@ -27,7 +27,7 @@ export class ServerController {
     }
   }
 
-  async getServers(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getServers(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const servers = await prisma.server.findMany({
         where: { isActive: true },
@@ -50,7 +50,7 @@ export class ServerController {
     }
   }
 
-  async healthCheck(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async healthCheck(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const results = await serverDetectionService.healthCheckAllServers();
 
