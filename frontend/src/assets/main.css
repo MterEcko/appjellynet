@@ -4,7 +4,7 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: #2F2F2F;
   }
   body {
     @apply bg-dark text-white font-sans;
