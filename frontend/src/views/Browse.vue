@@ -29,6 +29,7 @@
             <button @click="currentView = 'home'" :class="{ 'text-white font-semibold': currentView === 'home' }" class="hover:text-gray-300 transition-colors">Inicio</button>
             <button @click="currentView = 'movies'" :class="{ 'text-white font-semibold': currentView === 'movies' }" class="hover:text-gray-300 transition-colors">Películas</button>
             <button @click="currentView = 'series'" :class="{ 'text-white font-semibold': currentView === 'series' }" class="hover:text-gray-300 transition-colors">Series</button>
+            <button @click="loadGenresView" :class="{ 'text-white font-semibold': currentView === 'genres' }" class="hover:text-gray-300 transition-colors">Géneros</button>
             <button @click="loadMyList" :class="{ 'text-white font-semibold': currentView === 'mylist' }" class="hover:text-gray-300 transition-colors">Mi Lista</button>
           </div>
         </div>
@@ -157,6 +158,43 @@
           @play="playItem"
         />
       </template>
+
+      <!-- Genres View -->
+      <template v-else-if="currentView === 'genres'">
+        <div class="px-8">
+          <h1 class="text-4xl font-bold mb-8">Géneros</h1>
+
+          <!-- If no genre is selected, show genre grid -->
+          <div v-if="!selectedGenre" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+            <button
+              v-for="genre in genres"
+              :key="genre.Id"
+              @click="loadGenreContent(genre.Name)"
+              class="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 text-center transition-all hover:scale-105"
+            >
+              <h3 class="text-lg font-semibold">{{ genre.Name }}</h3>
+            </button>
+          </div>
+
+          <!-- If genre is selected, show genre content -->
+          <div v-else>
+            <button @click="selectedGenre = null" class="mb-6 flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              Volver a géneros
+            </button>
+            <ContentRow
+              v-if="genreItems.length > 0"
+              :title="selectedGenre"
+              :items="genreItems"
+              :server-url="serverUrl"
+              @play="playItem"
+            />
+            <p v-else class="text-gray-400">No hay contenido disponible para este género</p>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- Loading State -->
@@ -207,6 +245,9 @@ export default {
     const latestSeries = ref([]);
     const popularItems = ref([]);
     const myListItems = ref([]);
+    const genres = ref([]);
+    const selectedGenre = ref(null);
+    const genreItems = ref([]);
 
     const currentProfile = computed(() => authStore.currentProfile);
 
@@ -315,6 +356,37 @@ export default {
       }
     };
 
+    const loadGenresView = async () => {
+      currentView.value = 'genres';
+      selectedGenre.value = null;
+      genreItems.value = [];
+
+      if (genres.value.length === 0) {
+        try {
+          loading.value = true;
+          genres.value = await jellyfinService.getGenres();
+        } catch (error) {
+          console.error('Failed to load genres:', error);
+          genres.value = [];
+        } finally {
+          loading.value = false;
+        }
+      }
+    };
+
+    const loadGenreContent = async (genreName) => {
+      selectedGenre.value = genreName;
+      try {
+        loading.value = true;
+        genreItems.value = await jellyfinService.getItemsByGenre(genreName);
+      } catch (error) {
+        console.error('Failed to load genre content:', error);
+        genreItems.value = [];
+      } finally {
+        loading.value = false;
+      }
+    };
+
     const logout = () => {
       authStore.logout();
       router.push({ name: 'Login' });
@@ -343,12 +415,17 @@ export default {
       latestSeries,
       popularItems,
       myListItems,
+      genres,
+      selectedGenre,
+      genreItems,
       currentProfile,
       playItem,
       playEpisode,
       showItemInfo,
       showSeriesDetails,
       loadMyList,
+      loadGenresView,
+      loadGenreContent,
       logout,
     };
   },
