@@ -114,9 +114,10 @@ export default {
       try {
         loading.value = true;
         const response = await api.get('/profiles');
-        profiles.value = response.data.data.profiles;
+        profiles.value = response.data.data || [];
       } catch (error) {
         console.error('Error loading profiles:', error);
+        profiles.value = [];
       } finally {
         loading.value = false;
       }
