@@ -58,7 +58,7 @@ export class PlanService {
     });
 
     if (!plan) {
-      throw new NotFoundError(\`Plan configuration for \${planType} not found\`);
+      throw new NotFoundError(`Plan configuration for ${planType} not found`);
     }
 
     return plan;
@@ -89,7 +89,7 @@ export class PlanService {
     });
 
     if (existing) {
-      throw new BadRequestError(\`Plan configuration for \${data.planType} already exists\`);
+      throw new BadRequestError(`Plan configuration for ${data.planType} already exists`);
     }
 
     return await prisma.planConfig.create({
