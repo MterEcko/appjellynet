@@ -58,6 +58,15 @@
             <div v-if="showProfileMenu" class="absolute right-0 mt-2 w-48 bg-dark-lighter border border-gray-700 rounded shadow-xl">
               <router-link to="/profiles" class="block px-4 py-2 hover:bg-gray-700">Cambiar Perfil</router-link>
               <router-link to="/account" class="block px-4 py-2 hover:bg-gray-700">Mi Cuenta</router-link>
+              <router-link v-if="isAdmin" to="/admin" class="block px-4 py-2 hover:bg-gray-700 text-primary">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Dashboard Admin
+                </div>
+              </router-link>
               <hr class="border-gray-700" />
               <button @click="logout" class="w-full text-left px-4 py-2 hover:bg-gray-700">Cerrar Sesión</button>
             </div>
@@ -114,6 +123,25 @@
           :server-url="serverUrl"
           @play="playItem"
         />
+
+        <!-- New Content -->
+        <ContentRow
+          v-if="newContent.length > 0"
+          title="Nuevo contenido"
+          :items="newContent"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
+
+        <!-- Genre Rows for Home -->
+        <ContentRow
+          v-for="genreRow in homeGenreRows"
+          :key="genreRow.name"
+          :title="genreRow.name"
+          :items="genreRow.items"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
       </template>
 
       <!-- Movies View -->
@@ -121,10 +149,30 @@
         <div class="px-8">
           <h1 class="text-4xl font-bold mb-8">Películas</h1>
         </div>
+
+        <!-- New Movies -->
+        <ContentRow
+          v-if="newContent.length > 0"
+          title="Nuevas películas"
+          :items="newContent.filter(item => item.Type === 'Movie')"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
+
         <ContentRow
           v-if="latestMovies.length > 0"
           title="Todas las películas"
           :items="latestMovies"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
+
+        <!-- Genre Rows for Movies -->
+        <ContentRow
+          v-for="genreRow in movieGenreRows"
+          :key="genreRow.name"
+          :title="genreRow.name"
+          :items="genreRow.items"
           :server-url="serverUrl"
           @play="playItem"
         />
@@ -135,10 +183,30 @@
         <div class="px-8">
           <h1 class="text-4xl font-bold mb-8">Series</h1>
         </div>
+
+        <!-- New Series -->
+        <ContentRow
+          v-if="newContent.length > 0"
+          title="Nuevas series"
+          :items="newContent.filter(item => item.Type === 'Series')"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
+
         <ContentRow
           v-if="latestSeries.length > 0"
           title="Todas las series"
           :items="latestSeries"
+          :server-url="serverUrl"
+          @play="playItem"
+        />
+
+        <!-- Genre Rows for Series -->
+        <ContentRow
+          v-for="genreRow in seriesGenreRows"
+          :key="genreRow.name"
+          :title="genreRow.name"
+          :items="genreRow.items"
           :server-url="serverUrl"
           @play="playItem"
         />
@@ -248,8 +316,13 @@ export default {
     const genres = ref([]);
     const selectedGenre = ref(null);
     const genreItems = ref([]);
+    const newContent = ref([]);
+    const homeGenreRows = ref([]);
+    const movieGenreRows = ref([]);
+    const seriesGenreRows = ref([]);
 
     const currentProfile = computed(() => authStore.currentProfile);
+    const isAdmin = computed(() => authStore.isAdmin);
 
     const loadContent = async () => {
       try {
@@ -259,15 +332,17 @@ export default {
         serverUrl.value = await jellyfinService.initializeJellyfin();
 
         // Load all content in parallel
-        const [resume, movies, series] = await Promise.all([
+        const [resume, movies, series, latest] = await Promise.all([
           jellyfinService.getResumeItems(),
           jellyfinService.getItemsByType('Movie', 20),
           jellyfinService.getItemsByType('Series', 20),
+          jellyfinService.getLatestMedia(20),
         ]);
 
         continueWatching.value = resume;
         latestMovies.value = movies;
         latestSeries.value = series;
+        newContent.value = latest;
         popularItems.value = [...movies, ...series].sort(() => Math.random() - 0.5).slice(0, 20);
 
         // Set featured item (random from latest)
@@ -276,11 +351,55 @@ export default {
           featuredItem.value = allLatest[Math.floor(Math.random() * Math.min(10, allLatest.length))];
         }
 
+        // Load popular genres in the background
+        loadPopularGenres();
+
       } catch (error) {
         console.error('Failed to load content:', error);
         // Handle error - maybe redirect to login or show error message
       } finally {
         loading.value = false;
+      }
+    };
+
+    const loadPopularGenres = async () => {
+      try {
+        // Define popular genres to load
+        const popularGenres = ['Action', 'Comedy', 'Drama', 'Thriller', 'Science Fiction', 'Romance'];
+
+        // Load genre content in parallel
+        const genrePromises = popularGenres.map(async (genreName) => {
+          try {
+            const items = await jellyfinService.getItemsByGenre(genreName, 'Movie,Series', 20);
+            return { name: genreName, items };
+          } catch (error) {
+            console.error(`Failed to load genre ${genreName}:`, error);
+            return { name: genreName, items: [] };
+          }
+        });
+
+        const genreResults = await Promise.all(genrePromises);
+
+        // Filter out empty genres and assign to views
+        const validGenres = genreResults.filter(g => g.items.length > 0);
+
+        // Home gets 3 random genres
+        homeGenreRows.value = validGenres.slice(0, 3);
+
+        // Movies gets genres with movies
+        movieGenreRows.value = validGenres.map(g => ({
+          ...g,
+          items: g.items.filter(item => item.Type === 'Movie')
+        })).filter(g => g.items.length > 0).slice(0, 4);
+
+        // Series gets genres with series
+        seriesGenreRows.value = validGenres.map(g => ({
+          ...g,
+          items: g.items.filter(item => item.Type === 'Series')
+        })).filter(g => g.items.length > 0).slice(0, 4);
+
+      } catch (error) {
+        console.error('Failed to load popular genres:', error);
       }
     };
 
@@ -418,7 +537,12 @@ export default {
       genres,
       selectedGenre,
       genreItems,
+      newContent,
+      homeGenreRows,
+      movieGenreRows,
+      seriesGenreRows,
       currentProfile,
+      isAdmin,
       playItem,
       playEpisode,
       showItemInfo,
