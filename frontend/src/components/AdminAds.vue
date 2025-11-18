@@ -174,13 +174,22 @@
 
             <div class="form-group">
               <label>Miniatura (opcional)</label>
-              <input
-                ref="thumbnailInput"
-                type="file"
-                accept="image/*"
-                @change="handleThumbnailUpload"
-                class="file-input"
-              >
+              <div class="file-upload">
+                <input
+                  ref="thumbnailInput"
+                  type="file"
+                  accept="image/*"
+                  @change="handleThumbnailUpload"
+                  class="file-input"
+                >
+                <div class="file-upload-label">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span v-if="!form.thumbnailPath">Seleccionar miniatura</span>
+                  <span v-else>Miniatura seleccionada</span>
+                </div>
+              </div>
             </div>
 
             <div class="form-row">
@@ -341,9 +350,6 @@ const handleVideoUpload = async (event) => {
     uploadProgress.value = 0;
 
     const response = await api.post('/upload/ad-video', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
       onUploadProgress: (progressEvent) => {
         uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
       },
@@ -351,9 +357,13 @@ const handleVideoUpload = async (event) => {
 
     form.value.filePath = response.data.data.filePath;
     form.value.url = response.data.data.url;
+    console.log('Video uploaded successfully:', response.data.data);
   } catch (error) {
     console.error('Error uploading video:', error);
-    alert('Error al subir el video');
+    const errorMsg = error.response?.data?.message || error.message || 'Error desconocido';
+    alert(`Error al subir el video: ${errorMsg}`);
+    uploadedVideo.value = null;
+    uploadProgress.value = 0;
   } finally {
     uploading.value = false;
   }
@@ -367,15 +377,14 @@ const handleThumbnailUpload = async (event) => {
   formData.append('thumbnail', file);
 
   try {
-    const response = await api.post('/upload/ad-thumbnail', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await api.post('/upload/ad-thumbnail', formData);
 
     form.value.thumbnailPath = response.data.data.filePath;
+    console.log('Thumbnail uploaded successfully:', response.data.data);
   } catch (error) {
     console.error('Error uploading thumbnail:', error);
+    const errorMsg = error.response?.data?.message || error.message || 'Error desconocido';
+    alert(`Error al subir la miniatura: ${errorMsg}`);
   }
 };
 
