@@ -78,7 +78,7 @@ router.beforeEach((to, from, next) => {
 
   // Check if route requires admin
   if (to.meta.requiresAdmin && !authStore.user?.isAdmin) {
-    return next({ name: 'Home' });
+    return next({ name: 'Browse' });
   }
 
   // Redirect authenticated users away from guest pages
