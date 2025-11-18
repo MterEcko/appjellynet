@@ -453,3 +453,116 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+// ==============================================================================
+// PLAN CONFIGURATION MODEL
+// ==============================================================================
+
+model PlanConfig {
+  id                    String   @id @default(uuid())
+
+  // Plan details
+  planType              Plan     @unique @map("plan_type")
+  name                  String
+  description           String?
+
+  // Pricing
+  monthlyPrice          Decimal? @db.Decimal(10, 2) @map("monthly_price")
+  weeklyPrice           Decimal? @db.Decimal(10, 2) @map("weekly_price")
+  currency              String   @default("USD")
+
+  // Limits
+  maxProfiles           Int      @default(1) @map("max_profiles")
+  maxDevices            Int      @default(1) @map("max_devices")
+  maxConcurrentStreams  Int      @default(1) @map("max_concurrent_streams")
+
+  // Features
+  allowDownload         Boolean  @default(false) @map("allow_download")
+  maxVideoQuality       String   @default("720p") @map("max_video_quality") // 480p, 720p, 1080p, 4K
+  allowAds              Boolean  @default(true) @map("allow_ads")
+  skipAdsEnabled        Boolean  @default(false) @map("skip_ads_enabled")
+
+  // Custom features (JSON for flexibility)
+  features              Json?
+
+  // Status
+  isActive              Boolean  @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("plan_configs")
+}
+
+// ==============================================================================
+// ADVERTISEMENT MODELS
+// ==============================================================================
+
+model Ad {
+  id                String   @id @default(uuid())
+
+  // Ad details
+  title             String
+  description       String?
+  adType            AdType   @map("ad_type")
+
+  // Media
+  videoUrl          String   @map("video_url")
+  thumbnailUrl      String?  @map("thumbnail_url")
+  clickUrl          String?  @map("click_url") // URL when ad is clicked
+
+  // Targeting
+  targetPlans       Plan[]   @map("target_plans") // Which plans see this ad
+  targetRegions     String[] @map("target_regions") // Geographic targeting
+
+  // Timing
+  duration          Int      // Duration in seconds
+  skipAfter         Int?     @map("skip_after") // Seconds before skip button appears (null = not skipeable)
+
+  // Scheduling
+  startDate         DateTime? @map("start_date")
+  endDate           DateTime? @map("end_date")
+
+  // Status
+  isActive          Boolean  @default(true) @map("is_active")
+  priority          Int      @default(0) // Higher priority = shown first
+
+  // Analytics
+  impressions       Int      @default(0)
+  clicks            Int      @default(0)
+  completions       Int      @default(0)
+  skips             Int      @default(0)
+
+  // Timestamps
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("ads")
+}
+
+model AdView {
+  id              String   @id @default(uuid())
+
+  adId            String   @map("ad_id")
+  userId          String?  @map("user_id")
+  profileId       String?  @map("profile_id")
+
+  // Playback info
+  itemId          String   @map("item_id") // Movie/Episode being watched
+  itemType        String   @map("item_type")
+
+  // View details
+  wasCompleted    Boolean  @default(false) @map("was_completed")
+  wasSkipped      Boolean  @default(false) @map("was_skipped")
+  wasClicked      Boolean  @default(false) @map("was_clicked")
+  watchDuration   Int      @map("watch_duration") // Seconds actually watched
+
+  // Timestamps
+  viewedAt        DateTime @default(now()) @map("viewed_at")
+
+  @@map("ad_views")
+  @@index([adId])
+  @@index([userId])
+  @@index([profileId])
+}

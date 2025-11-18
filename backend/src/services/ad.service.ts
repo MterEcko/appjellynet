@@ -1,102 +1,75 @@
 import prisma from '../config/database';
-import { Ad, AdType, Prisma } from '@prisma/client';
-import { logger } from '../utils/logger.util';
-import { NotFoundError } from '../utils/error.util';
-import fs from 'fs/promises';
-import path from 'path';
+import { AdType, Plan } from '@prisma/client';
+import { NotFoundError, BadRequestError } from '../utils/error.util';
 
 export interface CreateAdData {
   title: string;
-  type: AdType;
+  description?: string;
+  adType: AdType;
+  videoUrl: string;
+  thumbnailUrl?: string;
+  clickUrl?: string;
+  targetPlans?: Plan[];
+  targetRegions?: string[];
   duration: number;
-  url?: string;
   skipAfter?: number;
-  weight?: number;
-  targetAudience?: any;
   startDate?: Date;
   endDate?: Date;
+  priority?: number;
 }
 
 export interface UpdateAdData {
   title?: string;
-  type?: AdType;
+  description?: string;
+  adType?: AdType;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  clickUrl?: string;
+  targetPlans?: Plan[];
+  targetRegions?: string[];
   duration?: number;
-  url?: string;
   skipAfter?: number;
-  weight?: number;
-  isActive?: boolean;
-  targetAudience?: any;
   startDate?: Date;
   endDate?: Date;
-}
-
-export interface GetAdsFilters {
-  type?: AdType;
+  priority?: number;
   isActive?: boolean;
-  page?: number;
-  limit?: number;
 }
 
-export interface AdSelectionOptions {
-  type: AdType;
-  profileId: string;
-  contentId?: string;
-}
-
-export interface TrackAdViewData {
+export interface RecordAdViewData {
   adId: string;
-  profileId: string;
-  contentId?: string;
-  completed: boolean;
-  skipped: boolean;
-  watchedSeconds: number;
+  userId?: string;
+  profileId?: string;
+  itemId: string;
+  itemType: string;
+  wasCompleted: boolean;
+  wasSkipped: boolean;
+  wasClicked: boolean;
+  watchDuration: number;
 }
 
-export interface AdStats {
-  totalAds: number;
-  activeAds: number;
-  totalViews: number;
-  totalCompletions: number;
-  totalSkips: number;
-  completionRate: number;
-  adsByType: {
-    type: AdType;
-    count: number;
-  }[];
-}
-
-class AdService {
+export class AdService {
   /**
-   * Create a new ad
+   * Get all ads
    */
-  async createAd(data: CreateAdData): Promise<Ad> {
-    logger.info(`Creating ad: ${data.title}`);
+  async getAllAds(includeInactive: boolean = false) {
+    const where: any = {};
 
-    const ad = await prisma.ad.create({
-      data: {
-        title: data.title,
-        type: data.type,
-        duration: data.duration,
-        url: data.url || '',
-        skipAfter: data.skipAfter,
-        weight: data.weight || 1,
-        targetAudience: data.targetAudience || Prisma.JsonNull,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        isActive: true,
-      },
+    if (!includeInactive) {
+      where.isActive = true;
+    }
+
+    return await prisma.ad.findMany({
+      where,
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
-
-    logger.info(`Ad created successfully: ${ad.id}`);
-    return ad;
   }
 
   /**
    * Get ad by ID
    */
-  async getAdById(adId: string): Promise<Ad> {
+  async getAdById(id: string) {
     const ad = await prisma.ad.findUnique({
-      where: { id: adId },
+      where: { id },
     });
 
     if (!ad) {
@@ -107,222 +80,171 @@ class AdService {
   }
 
   /**
-   * Get all ads with filters
+   * Get ads by type
    */
-  async getAds(filters: GetAdsFilters = {}): Promise<{
-    ads: Ad[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
-    const page = filters.page || 1;
-    const limit = filters.limit || 20;
-    const skip = (page - 1) * limit;
+  async getAdsByType(adType: AdType) {
+    const now = new Date();
 
-    const where: Prisma.AdWhereInput = {};
+    return await prisma.ad.findMany({
+      where: {
+        adType,
+        isActive: true,
+        OR: [
+          { startDate: null },
+          { startDate: { lte: now } },
+        ],
+        AND: [
+          {
+            OR: [
+              { endDate: null },
+              { endDate: { gte: now } },
+            ],
+          },
+        ],
+      },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+    });
+  }
 
-    if (filters.type) {
-      where.type = filters.type;
+  /**
+   * Get ad for playback (with targeting)
+   */
+  async getAdForPlayback(adType: AdType, userPlan: Plan, region?: string) {
+    const now = new Date();
+
+    const ads = await prisma.ad.findMany({
+      where: {
+        adType,
+        isActive: true,
+        OR: [
+          { targetPlans: { isEmpty: true } },
+          { targetPlans: { has: userPlan } },
+        ],
+        startDate: { lte: now },
+        OR: [
+          { endDate: null },
+          { endDate: { gte: now } },
+        ],
+      },
+      orderBy: [{ priority: 'desc' }, { impressions: 'asc' }],
+      take: 10,
+    });
+
+    // Filter by region if specified
+    let filteredAds = ads;
+    if (region) {
+      filteredAds = ads.filter(ad =>
+        ad.targetRegions.length === 0 || ad.targetRegions.includes(region)
+      );
     }
 
-    if (filters.isActive !== undefined) {
-      where.isActive = filters.isActive;
+    // Select random ad from top candidates
+    if (filteredAds.length === 0) {
+      return null;
     }
 
-    const [ads, total] = await Promise.all([
-      prisma.ad.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: {
-          createdAt: 'desc',
-        },
-      }),
-      prisma.ad.count({ where }),
-    ]);
+    const selectedAd = filteredAds[Math.floor(Math.random() * Math.min(3, filteredAds.length))];
 
-    return {
-      ads,
-      total,
-      page,
-      limit,
-    };
+    // Increment impressions
+    await prisma.ad.update({
+      where: { id: selectedAd.id },
+      data: { impressions: { increment: 1 } },
+    });
+
+    return selectedAd;
+  }
+
+  /**
+   * Create new ad
+   */
+  async createAd(data: CreateAdData) {
+    return await prisma.ad.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        adType: data.adType,
+        videoUrl: data.videoUrl,
+        thumbnailUrl: data.thumbnailUrl,
+        clickUrl: data.clickUrl,
+        targetPlans: data.targetPlans || [],
+        targetRegions: data.targetRegions || [],
+        duration: data.duration,
+        skipAfter: data.skipAfter,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        priority: data.priority || 0,
+      },
+    });
   }
 
   /**
    * Update ad
    */
-  async updateAd(adId: string, data: UpdateAdData): Promise<Ad> {
-    logger.info(`Updating ad: ${adId}`);
+  async updateAd(id: string, data: UpdateAdData) {
+    await this.getAdById(id);
 
-    // Check if ad exists
-    await this.getAdById(adId);
-
-    const ad = await prisma.ad.update({
-      where: { id: adId },
-      data: {
-        title: data.title,
-        type: data.type,
-        duration: data.duration,
-        url: data.url,
-        skipAfter: data.skipAfter,
-        weight: data.weight,
-        isActive: data.isActive,
-        targetAudience: data.targetAudience !== undefined ? data.targetAudience : undefined,
-        startDate: data.startDate,
-        endDate: data.endDate,
-      },
+    return await prisma.ad.update({
+      where: { id },
+      data,
     });
-
-    logger.info(`Ad updated successfully: ${ad.id}`);
-    return ad;
   }
 
   /**
    * Delete ad
    */
-  async deleteAd(adId: string): Promise<void> {
-    logger.info(`Deleting ad: ${adId}`);
+  async deleteAd(id: string) {
+    await this.getAdById(id);
 
-    const ad = await this.getAdById(adId);
-
-    // Delete associated file if exists
-    if (ad.url && ad.url.startsWith('/uploads/')) {
-      const filePath = path.join(process.cwd(), 'uploads', path.basename(ad.url));
-      try {
-        await fs.unlink(filePath);
-        logger.info(`Deleted ad file: ${filePath}`);
-      } catch (error: any) {
-        logger.warn(`Failed to delete ad file: ${error.message}`);
-      }
-    }
-
-    // Delete ad views
-    await prisma.adView.deleteMany({
-      where: { adId },
-    });
-
-    // Delete ad
     await prisma.ad.delete({
-      where: { id: adId },
+      where: { id },
     });
 
-    logger.info(`Ad deleted successfully: ${adId}`);
+    return { message: 'Ad deleted successfully' };
   }
 
   /**
-   * Select ad for playback using weighted random selection
+   * Toggle ad active status
    */
-  async selectAd(options: AdSelectionOptions): Promise<Ad | null> {
-    const now = new Date();
+  async toggleAdStatus(id: string) {
+    const ad = await this.getAdById(id);
 
-    // Get eligible ads
-    const eligibleAds = await prisma.ad.findMany({
-      where: {
-        type: options.type,
-        isActive: true,
-        OR: [
-          {
-            AND: [
-              { startDate: { lte: now } },
-              { endDate: { gte: now } },
-            ],
-          },
-          {
-            AND: [
-              { startDate: { lte: now } },
-              { endDate: null },
-            ],
-          },
-          {
-            AND: [
-              { startDate: null },
-              { endDate: { gte: now } },
-            ],
-          },
-          {
-            AND: [
-              { startDate: null },
-              { endDate: null },
-            ],
-          },
-        ],
-      },
+    return await prisma.ad.update({
+      where: { id },
+      data: { isActive: !ad.isActive },
     });
-
-    if (eligibleAds.length === 0) {
-      logger.info(`No eligible ads found for type: ${options.type}`);
-      return null;
-    }
-
-    // Calculate total weight
-    const totalWeight = eligibleAds.reduce((sum, ad) => sum + ad.weight, 0);
-
-    // Weighted random selection
-    let random = Math.random() * totalWeight;
-    let selectedAd: Ad | null = null;
-
-    for (const ad of eligibleAds) {
-      random -= ad.weight;
-      if (random <= 0) {
-        selectedAd = ad;
-        break;
-      }
-    }
-
-    // Fallback to last ad if none selected
-    if (!selectedAd) {
-      selectedAd = eligibleAds[eligibleAds.length - 1];
-    }
-
-    // Increment impressions
-    await prisma.ad.update({
-      where: { id: selectedAd.id },
-      data: {
-        impressions: {
-          increment: 1,
-        },
-      },
-    });
-
-    logger.info(`Selected ad: ${selectedAd.id} (${selectedAd.title}) for type: ${options.type}`);
-    return selectedAd;
   }
 
   /**
-   * Track ad view
+   * Record ad view
    */
-  async trackAdView(data: TrackAdViewData): Promise<void> {
-    logger.info(`Tracking ad view: ${data.adId}`);
+  async recordAdView(data: RecordAdViewData) {
+    const ad = await this.getAdById(data.adId);
 
-    // Check if ad exists
-    await this.getAdById(data.adId);
-
-    // Create ad view record
-    await prisma.adView.create({
+    // Create view record
+    const view = await prisma.adView.create({
       data: {
         adId: data.adId,
+        userId: data.userId,
         profileId: data.profileId,
-        contentId: data.contentId,
-        completed: data.completed,
-        skipped: data.skipped,
-        watchedSeconds: data.watchedSeconds,
+        itemId: data.itemId,
+        itemType: data.itemType,
+        wasCompleted: data.wasCompleted,
+        wasSkipped: data.wasSkipped,
+        wasClicked: data.wasClicked,
+        watchDuration: data.watchDuration,
       },
     });
 
-    // Update ad statistics
+    // Update ad analytics
     const updateData: any = {};
-
-    if (data.completed) {
-      updateData.completions = {
-        increment: 1,
-      };
+    if (data.wasCompleted) {
+      updateData.completions = { increment: 1 };
     }
-
-    if (data.skipped) {
-      updateData.skips = {
-        increment: 1,
-      };
+    if (data.wasSkipped) {
+      updateData.skips = { increment: 1 };
+    }
+    if (data.wasClicked) {
+      updateData.clicks = { increment: 1 };
     }
 
     if (Object.keys(updateData).length > 0) {
@@ -332,108 +254,83 @@ class AdService {
       });
     }
 
-    logger.info(`Ad view tracked successfully: ${data.adId}`);
-  }
-
-  /**
-   * Get ad statistics
-   */
-  async getAdStats(): Promise<AdStats> {
-    const [totalAds, activeAds, totalViews, adsByType] = await Promise.all([
-      prisma.ad.count(),
-      prisma.ad.count({ where: { isActive: true } }),
-      prisma.adView.count(),
-      prisma.ad.groupBy({
-        by: ['type'],
-        _count: {
-          id: true,
-        },
-      }),
-    ]);
-
-    // Calculate completion stats
-    const completionStats = await prisma.ad.aggregate({
-      _sum: {
-        completions: true,
-        skips: true,
-      },
-    });
-
-    const totalCompletions = completionStats._sum.completions || 0;
-    const totalSkips = completionStats._sum.skips || 0;
-    const completionRate = totalViews > 0 ? (totalCompletions / totalViews) * 100 : 0;
-
-    return {
-      totalAds,
-      activeAds,
-      totalViews,
-      totalCompletions,
-      totalSkips,
-      completionRate: Math.round(completionRate * 100) / 100,
-      adsByType: adsByType.map((item) => ({
-        type: item.type,
-        count: item._count.id,
-      })),
-    };
+    return view;
   }
 
   /**
    * Get ad analytics
    */
-  async getAdAnalytics(adId: string): Promise<{
-    ad: Ad;
-    views: number;
-    completions: number;
-    skips: number;
-    completionRate: number;
-    avgWatchTime: number;
-  }> {
-    const ad = await this.getAdById(adId);
+  async getAdAnalytics(id: string) {
+    const ad = await this.getAdById(id);
 
-    const [views, viewStats] = await Promise.all([
-      prisma.adView.count({
-        where: { adId },
-      }),
-      prisma.adView.aggregate({
-        where: { adId },
-        _count: {
-          id: true,
-        },
-        _avg: {
-          watchedSeconds: true,
-        },
-      }),
-    ]);
+    const totalViews = await prisma.adView.count({
+      where: { adId: id },
+    });
 
-    const completionRate = views > 0 ? (ad.completions / views) * 100 : 0;
+    const completionRate = ad.impressions > 0
+      ? (ad.completions / ad.impressions) * 100
+      : 0;
+
+    const clickThroughRate = ad.impressions > 0
+      ? (ad.clicks / ad.impressions) * 100
+      : 0;
+
+    const skipRate = ad.impressions > 0
+      ? (ad.skips / ad.impressions) * 100
+      : 0;
 
     return {
       ad,
-      views,
+      totalViews,
+      impressions: ad.impressions,
       completions: ad.completions,
+      clicks: ad.clicks,
       skips: ad.skips,
       completionRate: Math.round(completionRate * 100) / 100,
-      avgWatchTime: Math.round((viewStats._avg.watchedSeconds || 0) * 100) / 100,
+      clickThroughRate: Math.round(clickThroughRate * 100) / 100,
+      skipRate: Math.round(skipRate * 100) / 100,
     };
   }
 
   /**
-   * Calculate mid-roll positions for content
+   * Get all ads analytics
    */
-  calculateMidrollPositions(contentDurationSeconds: number, midrollCount: number = 2): number[] {
-    if (contentDurationSeconds < 600) {
-      // No mid-rolls for content shorter than 10 minutes
-      return [];
-    }
+  async getAllAdsAnalytics() {
+    const ads = await prisma.ad.findMany({
+      orderBy: { impressions: 'desc' },
+    });
 
-    const positions: number[] = [];
-    const interval = contentDurationSeconds / (midrollCount + 1);
+    const analytics = await Promise.all(
+      ads.map(async (ad) => {
+        const totalViews = await prisma.adView.count({
+          where: { adId: ad.id },
+        });
 
-    for (let i = 1; i <= midrollCount; i++) {
-      positions.push(Math.floor(interval * i));
-    }
+        const completionRate = ad.impressions > 0
+          ? Math.round((ad.completions / ad.impressions) * 10000) / 100
+          : 0;
 
-    return positions;
+        const clickThroughRate = ad.impressions > 0
+          ? Math.round((ad.clicks / ad.impressions) * 10000) / 100
+          : 0;
+
+        return {
+          id: ad.id,
+          title: ad.title,
+          adType: ad.adType,
+          isActive: ad.isActive,
+          impressions: ad.impressions,
+          completions: ad.completions,
+          clicks: ad.clicks,
+          skips: ad.skips,
+          totalViews,
+          completionRate,
+          clickThroughRate,
+        };
+      })
+    );
+
+    return analytics;
   }
 }
 
