@@ -6,7 +6,7 @@
       class="video-js vjs-default-skin vjs-big-play-centered"
     ></video>
 
-    <!-- Ad Overlay -->
+    <!-- Ad Overlay (for video ads - preroll/midroll) -->
     <div v-if="isPlayingAd && currentAd" class="ad-overlay">
       <div class="ad-badge">
         <span class="ad-icon">📺</span>
@@ -15,6 +15,26 @@
       <div v-if="currentAd.clickUrl" class="ad-click-area" @click="handleAdClick">
         <p class="ad-title">{{ currentAd.title }}</p>
         <p class="ad-campaign">{{ currentAd.campaignName || '' }}</p>
+      </div>
+    </div>
+
+    <!-- Pauseroll Overlay (shown when video is paused) -->
+    <div v-if="showPauseroll && pauserollAd" class="pauseroll-overlay" @click="handlePauserollClick">
+      <div class="pauseroll-content">
+        <img
+          v-if="pauserollAd.thumbnailPath"
+          :src="pauserollAd.thumbnailPath.startsWith('http') ? pauserollAd.thumbnailPath : `${window.location.origin}${pauserollAd.thumbnailPath}`"
+          :alt="pauserollAd.title"
+          class="pauseroll-image"
+        />
+        <div class="pauseroll-info">
+          <div class="pauseroll-badge">Anuncio</div>
+          <h3 class="pauseroll-title">{{ pauserollAd.title }}</h3>
+          <p v-if="pauserollAd.campaignName" class="pauseroll-campaign">{{ pauserollAd.campaignName }}</p>
+          <button v-if="pauserollAd.clickUrl" class="pauseroll-cta">
+            Más información →
+          </button>
+        </div>
       </div>
     </div>
 
@@ -71,6 +91,9 @@ let player = null;
 const currentAd = ref(null);
 const isPlayingAd = ref(false);
 const adWatched = ref(0);
+const midrollPlayed = ref(false);
+const pauserollAd = ref(null);
+const showPauseroll = ref(false);
 
 // Construct Jellyfin streaming URL
 const streamUrl = computed(() => {
@@ -102,6 +125,32 @@ const fetchPrerollAd = async () => {
     return response.data.data;
   } catch (error) {
     console.error('Error fetching pre-roll ad:', error);
+    return null;
+  }
+};
+
+/**
+ * Fetch mid-roll ad
+ */
+const fetchMidrollAd = async () => {
+  try {
+    const response = await api.get('/ads/playback/MIDROLL');
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching mid-roll ad:', error);
+    return null;
+  }
+};
+
+/**
+ * Fetch pause-roll ad
+ */
+const fetchPauserollAd = async () => {
+  try {
+    const response = await api.get('/ads/playback/PAUSEROLL');
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching pause-roll ad:', error);
     return null;
   }
 };
@@ -140,7 +189,7 @@ const handleAdClick = () => {
 /**
  * Play ad video
  */
-const playAd = (ad) => {
+const playAd = (ad, onAdEnd = null) => {
   if (!player || !ad) return;
 
   isPlayingAd.value = true;
@@ -174,8 +223,12 @@ const playAd = (ad) => {
     isPlayingAd.value = false;
     currentAd.value = null;
 
-    // Play main content
-    playMainVideo();
+    // Call custom callback or play main video
+    if (onAdEnd) {
+      onAdEnd();
+    } else {
+      playMainVideo();
+    }
   };
 
   player.one('ended', handleAdEnd);
@@ -195,6 +248,75 @@ const playMainVideo = () => {
   });
 
   player.play();
+};
+
+/**
+ * Check for mid-roll ad at 50% of video
+ */
+const checkMidroll = async () => {
+  if (!player || midrollPlayed.value || isPlayingAd.value) return;
+
+  const currentTime = player.currentTime();
+  const duration = player.duration();
+
+  // Check if we're at ~50% of the video
+  if (currentTime >= duration * 0.5 && currentTime <= duration * 0.51) {
+    midrollPlayed.value = true;
+
+    // Fetch and play midroll ad
+    const midrollAd = await fetchMidrollAd();
+    if (midrollAd) {
+      console.log('Playing mid-roll ad:', midrollAd.title);
+      const resumeTime = currentTime;
+
+      // Play ad
+      playAd(midrollAd, () => {
+        // Resume main video after ad
+        player.currentTime(resumeTime);
+        player.play();
+      });
+    }
+  }
+};
+
+/**
+ * Handle pause event for pause-roll ads
+ */
+const handlePause = async () => {
+  if (isPlayingAd.value) return; // Don't show pauseroll during ad
+
+  // Fetch pauseroll ad if we don't have one
+  if (!pauserollAd.value) {
+    pauserollAd.value = await fetchPauserollAd();
+  }
+
+  if (pauserollAd.value) {
+    showPauseroll.value = true;
+    // Report impression
+    reportAdView(pauserollAd.value.id, false, false, 0);
+  }
+};
+
+/**
+ * Handle play event to hide pause-roll
+ */
+const handlePlay = () => {
+  if (showPauseroll.value) {
+    showPauseroll.value = false;
+  }
+};
+
+/**
+ * Handle pauseroll click
+ */
+const handlePauserollClick = () => {
+  if (!pauserollAd.value || !pauserollAd.value.clickUrl) return;
+
+  // Report click
+  reportAdView(pauserollAd.value.id, false, false, 0, true);
+
+  // Open link in new tab
+  window.open(pauserollAd.value.clickUrl, '_blank');
 };
 
 const initializePlayer = async () => {
@@ -263,6 +385,15 @@ const initializePlayer = async () => {
         emit('ended');
       }
     });
+
+    // Listen for pause events (for pauseroll ads)
+    player.on('pause', handlePause);
+
+    // Listen for play events (to hide pauseroll)
+    player.on('play', handlePlay);
+
+    // Listen for timeupdate to check for midroll
+    player.on('timeupdate', checkMidroll);
 
     // Force controls to be visible
     player.ready(function() {
@@ -483,5 +614,116 @@ onBeforeUnmount(() => {
   color: #ccc;
   font-size: 14px;
   margin: 0;
+}
+
+/* Pauseroll overlay styles */
+.pauseroll-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 15;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.pauseroll-content {
+  display: flex;
+  max-width: 800px;
+  background: rgba(20, 20, 20, 0.95);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s;
+}
+
+.pauseroll-content:hover {
+  transform: scale(1.02);
+}
+
+.pauseroll-image {
+  width: 300px;
+  height: 200px;
+  object-fit: cover;
+}
+
+.pauseroll-info {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.pauseroll-badge {
+  display: inline-block;
+  background: rgba(229, 9, 20, 0.9);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 12px;
+  align-self: flex-start;
+}
+
+.pauseroll-title {
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0 0 8px 0;
+}
+
+.pauseroll-campaign {
+  color: #ccc;
+  font-size: 16px;
+  margin: 0 0 16px 0;
+}
+
+.pauseroll-cta {
+  background: #E50914;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+  align-self: flex-start;
+}
+
+.pauseroll-cta:hover {
+  background: #B8070F;
+}
+
+/* Responsive design for pauseroll */
+@media (max-width: 768px) {
+  .pauseroll-content {
+    flex-direction: column;
+    max-width: 90%;
+  }
+
+  .pauseroll-image {
+    width: 100%;
+    height: 180px;
+  }
+
+  .pauseroll-info {
+    padding: 20px;
+  }
+
+  .pauseroll-title {
+    font-size: 20px;
+  }
+
+  .pauseroll-campaign {
+    font-size: 14px;
+  }
 }
 </style>
