@@ -23,7 +23,7 @@
       <div class="pauseroll-content">
         <img
           v-if="pauserollAd.thumbnailPath"
-          :src="pauserollAd.thumbnailPath.startsWith('http') ? pauserollAd.thumbnailPath : `${window.location.origin}${pauserollAd.thumbnailPath}`"
+          :src="getAdImageUrl(pauserollAd.thumbnailPath)"
           :alt="pauserollAd.title"
           class="pauseroll-image"
         />
@@ -174,6 +174,17 @@ const reportAdView = async (adId, completed, skipped, watchedSeconds, clicked = 
 };
 
 /**
+ * Get ad image URL (thumbnail or video preview)
+ */
+const getAdImageUrl = (imagePath) => {
+  if (!imagePath) return '';
+  if (imagePath.startsWith('http')) return imagePath;
+
+  const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
+  return `${backendUrl}${imagePath}`;
+};
+
+/**
  * Handle ad click
  */
 const handleAdClick = () => {
@@ -196,8 +207,12 @@ const playAd = (ad, onAdEnd = null) => {
   currentAd.value = ad;
   adWatched.value = 0;
 
-  // Set ad source
-  const adUrl = ad.url || `${window.location.origin}${ad.filePath}`;
+  // Set ad source - use backend URL for uploaded files
+  const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
+  const adUrl = ad.url || `${backendUrl}${ad.filePath}`;
+
+  console.log('Loading ad video from:', adUrl);
+
   player.src({
     src: adUrl,
     type: 'video/mp4',
