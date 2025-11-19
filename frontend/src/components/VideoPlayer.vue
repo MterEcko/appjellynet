@@ -6,6 +6,18 @@
       class="video-js vjs-default-skin vjs-big-play-centered"
     ></video>
 
+    <!-- Ad Overlay -->
+    <div v-if="isPlayingAd && currentAd" class="ad-overlay">
+      <div class="ad-badge">
+        <span class="ad-icon">📺</span>
+        Anuncio
+      </div>
+      <div v-if="currentAd.clickUrl" class="ad-click-area" @click="handleAdClick">
+        <p class="ad-title">{{ currentAd.title }}</p>
+        <p class="ad-campaign">{{ currentAd.campaignName || '' }}</p>
+      </div>
+    </div>
+
     <!-- Loading Spinner -->
     <div v-if="loading" class="loading-overlay">
       <div class="spinner"></div>
@@ -27,6 +39,7 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
+import api from '@/services/api';
 
 const props = defineProps({
   itemId: {
@@ -54,6 +67,11 @@ const error = ref(null);
 const videoElement = ref(null);
 let player = null;
 
+// Ad state
+const currentAd = ref(null);
+const isPlayingAd = ref(false);
+const adWatched = ref(0);
+
 // Construct Jellyfin streaming URL
 const streamUrl = computed(() => {
   try {
@@ -75,7 +93,111 @@ const streamUrl = computed(() => {
   }
 });
 
-const initializePlayer = () => {
+/**
+ * Fetch pre-roll ad
+ */
+const fetchPrerollAd = async () => {
+  try {
+    const response = await api.get('/ads/playback/PREROLL');
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching pre-roll ad:', error);
+    return null;
+  }
+};
+
+/**
+ * Report ad view
+ */
+const reportAdView = async (adId, completed, skipped, watchedSeconds, clicked = false) => {
+  try {
+    await api.post('/ads/views', {
+      adId,
+      contentId: props.itemId,
+      completed,
+      skipped,
+      watchedSeconds,
+      clicked,
+    });
+  } catch (error) {
+    console.error('Error reporting ad view:', error);
+  }
+};
+
+/**
+ * Handle ad click
+ */
+const handleAdClick = () => {
+  if (!currentAd.value || !currentAd.value.clickUrl) return;
+
+  // Report click
+  reportAdView(currentAd.value.id, false, false, adWatched.value, true);
+
+  // Open link in new tab
+  window.open(currentAd.value.clickUrl, '_blank');
+};
+
+/**
+ * Play ad video
+ */
+const playAd = (ad) => {
+  if (!player || !ad) return;
+
+  isPlayingAd.value = true;
+  currentAd.value = ad;
+  adWatched.value = 0;
+
+  // Set ad source
+  const adUrl = ad.url || `${window.location.origin}${ad.filePath}`;
+  player.src({
+    src: adUrl,
+    type: 'video/mp4',
+  });
+
+  // Track ad watch time
+  const adTimeTracker = setInterval(() => {
+    if (player && isPlayingAd.value) {
+      adWatched.value = Math.floor(player.currentTime());
+    }
+  }, 1000);
+
+  // Handle ad end
+  const handleAdEnd = () => {
+    clearInterval(adTimeTracker);
+    const completed = adWatched.value >= (ad.duration || player.duration() || 0) * 0.95;
+
+    // Report ad view
+    reportAdView(ad.id, completed, false, adWatched.value);
+
+    // Clean up
+    player.off('ended', handleAdEnd);
+    isPlayingAd.value = false;
+    currentAd.value = null;
+
+    // Play main content
+    playMainVideo();
+  };
+
+  player.one('ended', handleAdEnd);
+  player.play();
+};
+
+/**
+ * Play main video
+ */
+const playMainVideo = () => {
+  if (!player || !streamUrl.value) return;
+
+  // Set main video source
+  player.src({
+    src: streamUrl.value,
+    type: 'video/mp4',
+  });
+
+  player.play();
+};
+
+const initializePlayer = async () => {
   if (!videoElement.value || !streamUrl.value) {
     error.value = 'No se pudo inicializar el reproductor';
     loading.value = false;
@@ -108,12 +230,6 @@ const initializePlayer = () => {
       },
     });
 
-    // Set the source
-    player.src({
-      src: streamUrl.value,
-      type: 'video/mp4', // Jellyfin will handle transcoding if needed
-    });
-
     // Handle player events
     player.on('loadstart', () => {
       console.log('Video loading started');
@@ -141,8 +257,11 @@ const initializePlayer = () => {
     });
 
     player.on('ended', () => {
-      console.log('Video ended');
-      emit('ended');
+      // Only emit ended if it's the main video, not an ad
+      if (!isPlayingAd.value) {
+        console.log('Main video ended');
+        emit('ended');
+      }
     });
 
     // Force controls to be visible
@@ -150,6 +269,17 @@ const initializePlayer = () => {
       this.controlBar.show();
       console.log('Player ready, stream URL:', streamUrl.value);
     });
+
+    // Check for pre-roll ad
+    const prerollAd = await fetchPrerollAd();
+
+    if (prerollAd) {
+      console.log('Playing pre-roll ad:', prerollAd.title);
+      playAd(prerollAd);
+    } else {
+      console.log('No pre-roll ad, playing main video');
+      playMainVideo();
+    }
 
   } catch (err) {
     console.error('Error initializing player:', err);
@@ -293,5 +423,65 @@ onBeforeUnmount(() => {
 .error-overlay p {
   color: #999;
   font-size: 16px;
+}
+
+/* Ad overlay styles */
+.ad-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.ad-badge {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(229, 9, 20, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-icon {
+  font-size: 18px;
+}
+
+.ad-click-area {
+  position: absolute;
+  bottom: 80px;
+  left: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 15px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  pointer-events: all;
+  transition: background 0.2s;
+}
+
+.ad-click-area:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.ad-title {
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0 0 5px 0;
+}
+
+.ad-campaign {
+  color: #ccc;
+  font-size: 14px;
+  margin: 0;
 }
 </style>
