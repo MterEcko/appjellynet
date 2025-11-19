@@ -178,10 +178,10 @@ const reportAdView = async (adId, completed, skipped, watchedSeconds, clicked = 
  */
 const getAdImageUrl = (imagePath) => {
   if (!imagePath) return '';
+  // If already a full URL, return as-is
   if (imagePath.startsWith('http')) return imagePath;
-
-  const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
-  return `${backendUrl}${imagePath}`;
+  // Use relative URL to leverage Vite proxy in dev
+  return imagePath;
 };
 
 /**
@@ -207,9 +207,9 @@ const playAd = (ad, onAdEnd = null) => {
   currentAd.value = ad;
   adWatched.value = 0;
 
-  // Set ad source - use backend URL for uploaded files
-  const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
-  const adUrl = ad.url || `${backendUrl}${ad.filePath}`;
+  // Set ad source - use relative URLs to leverage Vite proxy in dev
+  // In production, filePath will be served by backend static middleware
+  const adUrl = ad.url || ad.filePath;
 
   console.log('Loading ad video from:', adUrl);
 
