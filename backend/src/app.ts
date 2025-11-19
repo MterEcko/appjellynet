@@ -8,8 +8,13 @@ import { logger } from './utils/logger.util';
 
 const app: Application = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware - Configure helmet to allow video loading
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 // CORS
 app.use(
@@ -23,8 +28,13 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files
-app.use('/uploads', express.static('public/uploads'));
+// Serve static files with CORS headers
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static('public/uploads'));
 
 // Request logging
 app.use((req, _res, next) => {
