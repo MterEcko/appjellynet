@@ -4,6 +4,7 @@ import serverDetectionService from '../services/server-detection.service';
 import profileService from '../services/profile.service';
 import { sendSuccess } from '../utils/response.util';
 import { getClientIp } from '../utils/network.util';
+import env from '../config/env';
 
 export class JellyfinProxyController {
   /**
@@ -345,6 +346,29 @@ export class JellyfinProxyController {
       const genres = await jellyfinApi.getAllGenres(jellyfinUserId);
 
       sendSuccess(res, genres, 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get Jellyfin access token
+   * Returns the API key used to access Jellyfin directly for streaming
+   */
+  async getAccessToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const profileId = req.user?.profileId;
+      const userId = req.user?.userId;
+
+      if (!profileId || !userId) {
+        throw new Error('Profile not selected');
+      }
+
+      // Return the Jellyfin API key that's used by the backend
+      // This allows the frontend to access streaming URLs directly
+      sendSuccess(res, {
+        accessToken: env.JELLYFIN_API_KEY
+      }, 200);
     } catch (error) {
       next(error);
     }

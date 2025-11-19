@@ -43,4 +43,7 @@ router.post('/playback/progress', jellyfinProxyController.reportProgress);
 // Report playback stopped
 router.post('/playback/stopped', jellyfinProxyController.reportStopped);
 
+// Get Jellyfin access token for direct streaming
+router.get('/access-token', jellyfinProxyController.getAccessToken);
+
 export default router;

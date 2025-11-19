@@ -102,8 +102,9 @@ export default {
           throw new Error('No media sources available');
         }
 
-        // Get Jellyfin token (from localStorage or backend)
-        jellyfinToken.value = localStorage.getItem('jellyfinAccessToken') || '';
+        // Get Jellyfin access token from backend
+        const tokenResponse = await jellyfinService.getAccessToken();
+        jellyfinToken.value = tokenResponse || '';
 
         loading.value = false;
 

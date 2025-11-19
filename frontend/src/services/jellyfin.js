@@ -223,6 +223,19 @@ export async function getItemsByGenre(genre, type = 'Movie,Series', limit = 50) 
   }
 }
 
+/**
+ * Get Jellyfin access token for direct streaming
+ */
+export async function getAccessToken() {
+  try {
+    const response = await api.get('/jellyfin/access-token');
+    return response.data.data.accessToken;
+  } catch (error) {
+    console.error('Failed to get access token:', error);
+    return '';
+  }
+}
+
 export default {
   initializeJellyfin,
   getLatestMedia,
@@ -235,6 +248,7 @@ export default {
   getSimilarItems,
   getGenres,
   getItemsByGenre,
+  getAccessToken,
   getPlaybackUrl,
   getImageUrl,
   getBackdropUrl,
