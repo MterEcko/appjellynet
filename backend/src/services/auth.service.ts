@@ -138,6 +138,24 @@ export class AuthService {
     // TODO: Verify token and reset password
     // This will be implemented later
   }
+
+  /**
+   * Verify user password
+   * @param email User email
+   * @param password Password to verify
+   * @returns true if password is valid, false otherwise
+   */
+  async verifyPassword(email: string, password: string): Promise<boolean> {
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return false;
+    }
+
+    return await comparePassword(password, user.passwordHash);
+  }
 }
 
 export default new AuthService();

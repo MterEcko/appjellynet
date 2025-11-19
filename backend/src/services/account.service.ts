@@ -5,6 +5,7 @@ import { hashPassword } from '../utils/bcrypt.util';
 import profileService from './profile.service';
 import JellyfinApiService from './jellyfin-api.service';
 import serverDetectionService from './server-detection.service';
+import emailService from './email.service';
 import { logger } from '../utils/logger.util';
 
 export interface CreateAccountData {
@@ -134,7 +135,7 @@ export class AccountService {
    * Suspend account
    */
   async suspendAccount(userId: string, reason: string): Promise<void> {
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: userId },
       data: {
         status: AccountStatus.SUSPENDED,
@@ -142,6 +143,9 @@ export class AccountService {
         suspensionReason: reason,
       },
     });
+
+    // Send suspension notification email
+    await emailService.sendAccountSuspendedEmail(user.email, reason);
 
     // Disable all profiles in Jellyfin
     // TODO: Implement this properly with server detection
@@ -152,7 +156,7 @@ export class AccountService {
    * Reactivate suspended account
    */
   async reactivateAccount(userId: string): Promise<void> {
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: userId },
       data: {
         status: AccountStatus.ACTIVE,
@@ -160,6 +164,9 @@ export class AccountService {
         suspensionReason: null,
       },
     });
+
+    // Send reactivation notification email
+    await emailService.sendAccountReactivatedEmail(user.email);
 
     // Enable all profiles in Jellyfin
     // TODO: Implement this properly with server detection
@@ -207,6 +214,58 @@ export class AccountService {
       logger.error(`Failed to update Jellyfin passwords: ${error.message}`);
       throw new Error('Failed to update password in Jellyfin');
     }
+  }
+
+  /**
+   * Get notification preferences
+   */
+  async getNotificationPreferences(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        notifyNewContent: true,
+        notifyAccountUpdates: true,
+        notifyMarketing: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    return {
+      newContent: user.notifyNewContent,
+      accountUpdates: user.notifyAccountUpdates,
+      marketing: user.notifyMarketing,
+    };
+  }
+
+  /**
+   * Update notification preferences
+   */
+  async updateNotificationPreferences(
+    userId: string,
+    preferences: {
+      notifyNewContent?: boolean;
+      notifyAccountUpdates?: boolean;
+      notifyMarketing?: boolean;
+    }
+  ) {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: preferences,
+      select: {
+        notifyNewContent: true,
+        notifyAccountUpdates: true,
+        notifyMarketing: true,
+      },
+    });
+
+    return {
+      newContent: user.notifyNewContent,
+      accountUpdates: user.notifyAccountUpdates,
+      marketing: user.notifyMarketing,
+    };
   }
 
   /**

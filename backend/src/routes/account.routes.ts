@@ -13,7 +13,17 @@ router.get('/me', accountController.getMe);
 // Update account
 router.patch('/me', accountController.updateAccount);
 
-// Update password (syncs to all Jellyfin profiles)
+// Update password (syncs to all Jellyfin profiles) - legacy endpoint
 router.post('/password', accountController.updatePassword);
+
+// Change email with password verification
+router.post('/change-email', accountController.changeEmail);
+
+// Change password with current password verification
+router.post('/change-password', accountController.changePassword);
+
+// Notification preferences
+router.get('/notification-preferences', accountController.getNotificationPreferences);
+router.post('/notification-preferences', accountController.updateNotificationPreferences);
 
 export default router;

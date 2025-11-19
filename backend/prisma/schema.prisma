@@ -108,6 +108,11 @@ model User {
   // Roles
   isAdmin            Boolean       @default(false) @map("is_admin")
 
+  // Notification preferences
+  notifyNewContent   Boolean       @default(true) @map("notify_new_content")
+  notifyAccountUpdates Boolean     @default(true) @map("notify_account_updates")
+  notifyMarketing    Boolean       @default(false) @map("notify_marketing")
+
   // Relations
   profiles           Profile[]
   subscriptions      Subscription[]

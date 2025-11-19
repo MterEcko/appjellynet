@@ -70,6 +70,15 @@ export class EmailService {
     });
   }
 
+  async sendAccountReactivatedEmail(email: string): Promise<boolean> {
+    return this.sendEmail({
+      to: email,
+      subject: 'Tu cuenta ha sido reactivada',
+      html: '<h1>Cuenta Reactivada</h1><p>Tu cuenta ha sido reactivada y puedes volver a acceder al servicio.</p>',
+      text: 'Tu cuenta ha sido reactivada y puedes volver a acceder al servicio.',
+    });
+  }
+
   async sendPasswordChangedEmail(email: string): Promise<boolean> {
     return this.sendEmail({
       to: email,
