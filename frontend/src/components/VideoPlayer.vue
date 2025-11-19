@@ -207,9 +207,10 @@ const playAd = (ad, onAdEnd = null) => {
   currentAd.value = ad;
   adWatched.value = 0;
 
-  // Set ad source - use relative URLs to leverage Vite proxy in dev
-  // In production, filePath will be served by backend static middleware
-  const adUrl = ad.url || ad.filePath;
+  // Always use filePath (relative URL) instead of absolute URL
+  // This works with Vite proxy in dev and static serving in production
+  // and allows access from any IP/domain, not just localhost
+  const adUrl = ad.filePath;
 
   console.log('Loading ad video from:', adUrl);
 
