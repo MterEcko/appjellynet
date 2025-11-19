@@ -16,6 +16,15 @@
         <p class="ad-title">{{ currentAd.title }}</p>
         <p class="ad-campaign">{{ currentAd.campaignName || '' }}</p>
       </div>
+      <!-- Skip Ad Button (like YouTube) -->
+      <div class="skip-ad-container">
+        <button v-if="canSkipAd" @click="skipAd" class="skip-ad-button">
+          Saltar anuncio →
+        </button>
+        <div v-else-if="skipCountdown > 0" class="skip-ad-countdown">
+          Puedes saltar en {{ skipCountdown }}s
+        </div>
+      </div>
     </div>
 
     <!-- Pauseroll Overlay (shown when video is paused) -->
@@ -94,6 +103,8 @@ const adWatched = ref(0);
 const midrollPlayed = ref(false);
 const pauserollAd = ref(null);
 const showPauseroll = ref(false);
+const canSkipAd = ref(false);
+const skipCountdown = ref(0);
 
 // Construct Jellyfin streaming URL
 const streamUrl = computed(() => {
@@ -198,6 +209,27 @@ const handleAdClick = () => {
 };
 
 /**
+ * Skip current ad
+ */
+const skipAd = () => {
+  if (!player || !isPlayingAd.value) return;
+
+  console.log('Ad skipped by user');
+
+  // Mark as skipped
+  const skipped = true;
+  const completed = false;
+
+  // Report ad view with skip
+  if (currentAd.value) {
+    reportAdView(currentAd.value.id, completed, skipped, adWatched.value);
+  }
+
+  // Trigger ended event to transition to main video
+  player.trigger('ended');
+};
+
+/**
  * Play ad video
  */
 const playAd = (ad, onAdEnd = null) => {
@@ -206,6 +238,8 @@ const playAd = (ad, onAdEnd = null) => {
   isPlayingAd.value = true;
   currentAd.value = ad;
   adWatched.value = 0;
+  canSkipAd.value = false;
+  skipCountdown.value = ad.skipAfter || 5;
 
   // Always use filePath (relative URL) instead of absolute URL
   // This works with Vite proxy in dev and static serving in production
@@ -213,16 +247,29 @@ const playAd = (ad, onAdEnd = null) => {
   const adUrl = ad.filePath;
 
   console.log('Loading ad video from:', adUrl);
+  console.log('Ad can be skipped after:', ad.skipAfter || 5, 'seconds');
 
   player.src({
     src: adUrl,
     type: 'video/mp4',
   });
 
-  // Track ad watch time
+  // Track ad watch time and skip countdown
   const adTimeTracker = setInterval(() => {
     if (player && isPlayingAd.value) {
       adWatched.value = Math.floor(player.currentTime());
+
+      // Update skip countdown
+      const skipAfter = ad.skipAfter || 5;
+      const remainingTime = skipAfter - adWatched.value;
+
+      if (remainingTime > 0) {
+        skipCountdown.value = remainingTime;
+        canSkipAd.value = false;
+      } else {
+        skipCountdown.value = 0;
+        canSkipAd.value = true;
+      }
     }
   }, 1000);
 
@@ -230,14 +277,17 @@ const playAd = (ad, onAdEnd = null) => {
   const handleAdEnd = () => {
     clearInterval(adTimeTracker);
     const completed = adWatched.value >= (ad.duration || player.duration() || 0) * 0.95;
+    const skipped = false;
 
     // Report ad view
-    reportAdView(ad.id, completed, false, adWatched.value);
+    reportAdView(ad.id, completed, skipped, adWatched.value);
 
     // Clean up
     player.off('ended', handleAdEnd);
     isPlayingAd.value = false;
     currentAd.value = null;
+    canSkipAd.value = false;
+    skipCountdown.value = 0;
 
     // Call custom callback or play main video
     if (onAdEnd) {
@@ -477,6 +527,14 @@ onBeforeUnmount(() => {
   width: 100% !important;
   height: 3em !important;
   background-color: rgba(43, 51, 63, 0.7) !important;
+  z-index: 10 !important;
+}
+
+/* Force all control bar buttons to be visible */
+.video-player-container .vjs-control-bar > * {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Keep controls visible even when user is inactive */
@@ -484,6 +542,20 @@ onBeforeUnmount(() => {
   opacity: 1 !important;
   visibility: visible !important;
   transform: translateY(0) !important;
+  display: flex !important;
+}
+
+/* Force progress control to be visible */
+.video-player-container .vjs-progress-control {
+  display: flex !important;
+  flex: 1 !important;
+  visibility: visible !important;
+}
+
+/* Ensure time displays are visible */
+.video-player-container .vjs-time-control {
+  display: block !important;
+  visibility: visible !important;
 }
 
 /* Ensure big play button is visible */
@@ -630,6 +702,43 @@ onBeforeUnmount(() => {
   color: #ccc;
   font-size: 14px;
   margin: 0;
+}
+
+/* Skip Ad Button styles (like YouTube) */
+.skip-ad-container {
+  position: absolute;
+  bottom: 80px;
+  right: 20px;
+  pointer-events: all;
+  z-index: 15;
+}
+
+.skip-ad-button {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.skip-ad-button:hover {
+  background: rgba(0, 0, 0, 0.95);
+}
+
+.skip-ad-countdown {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
 }
 
 /* Pauseroll overlay styles */
