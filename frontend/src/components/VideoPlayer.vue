@@ -1,20 +1,15 @@
 <template>
-  <div class="jellyfin-player-container">
-    <!-- Jellyfin Web Player in iframe -->
-    <iframe
-      v-if="jellyfinPlayerUrl"
-      ref="playerIframe"
-      :src="jellyfinPlayerUrl"
-      class="jellyfin-iframe"
-      allowfullscreen
-      allow="autoplay; fullscreen; picture-in-picture"
-      @load="handleIframeLoad"
-    ></iframe>
+  <div class="video-player-container">
+    <!-- Video.js Player with Jellyfin Stream -->
+    <video
+      ref="videoElement"
+      class="video-js vjs-default-skin vjs-big-play-centered"
+    ></video>
 
     <!-- Loading Spinner -->
     <div v-if="loading" class="loading-overlay">
       <div class="spinner"></div>
-      <p>Cargando reproductor...</p>
+      <p>Cargando video...</p>
     </div>
 
     <!-- Error State -->
@@ -22,14 +17,16 @@
       <svg class="error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      <h2>Error al cargar el reproductor</h2>
+      <h2>Error al cargar el video</h2>
       <p>{{ error }}</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import videojs from 'video.js';
+import 'video.js/dist/video-js.css';
 
 const props = defineProps({
   itemId: {
@@ -54,76 +51,128 @@ const emit = defineEmits(['ended', 'error']);
 
 const loading = ref(true);
 const error = ref(null);
-const playerIframe = ref(null);
+const videoElement = ref(null);
+let player = null;
 
-// Construct Jellyfin web player URL
-const jellyfinPlayerUrl = computed(() => {
+// Construct Jellyfin streaming URL
+const streamUrl = computed(() => {
   try {
-    // Use Jellyfin's web client video player
     const baseUrl = props.serverUrl.replace('/api', '');
 
-    // Build the URL to Jellyfin's web player
-    // Format: /web/index.html#!/video?id=ITEMID&mediaSourceId=MEDIASOURCEID&api_key=TOKEN
-    let url = `${baseUrl}/web/index.html#!/video?id=${props.itemId}`;
+    // Use Jellyfin's direct stream endpoint
+    // This endpoint returns the video file directly with the API key for authentication
+    let url = `${baseUrl}/Items/${props.itemId}/Download?api_key=${props.jellyfinToken}`;
 
     if (props.mediaSourceId) {
       url += `&mediaSourceId=${props.mediaSourceId}`;
     }
 
-    url += `&api_key=${props.jellyfinToken}`;
-
-    // Add auto-play parameter
-    url += '&autoplay=true';
-
     return url;
   } catch (err) {
-    console.error('Error building Jellyfin URL:', err);
-    error.value = 'Error al construir la URL del reproductor';
+    console.error('Error building stream URL:', err);
+    error.value = 'Error al construir la URL del video';
     return null;
   }
 });
 
-const handleIframeLoad = () => {
-  loading.value = false;
-  console.log('Jellyfin player loaded');
-};
-
-// Listen for messages from iframe (for ended event)
-const handleMessage = (event) => {
-  // Check if message is from Jellyfin player
-  if (event.origin !== new URL(props.serverUrl).origin) {
+const initializePlayer = () => {
+  if (!videoElement.value || !streamUrl.value) {
+    error.value = 'No se pudo inicializar el reproductor';
+    loading.value = false;
     return;
   }
 
   try {
-    const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+    player = videojs(videoElement.value, {
+      controls: true,
+      autoplay: true,
+      preload: 'auto',
+      fluid: true,
+      responsive: true,
+      aspectRatio: '16:9',
+      playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
+      controlBar: {
+        volumePanel: {
+          inline: false,
+        },
+        pictureInPictureToggle: true,
+        fullscreenToggle: true,
+      },
+      html5: {
+        vhs: {
+          withCredentials: false,
+        },
+        nativeVideoTracks: false,
+        nativeAudioTracks: false,
+        nativeTextTracks: false,
+      },
+    });
 
-    if (data.type === 'playbackstop' || data.type === 'ended') {
+    // Set the source
+    player.src({
+      src: streamUrl.value,
+      type: 'video/mp4', // Jellyfin will handle transcoding if needed
+    });
+
+    // Handle player events
+    player.on('loadstart', () => {
+      console.log('Video loading started');
+      loading.value = true;
+    });
+
+    player.on('loadeddata', () => {
+      console.log('Video data loaded');
+      loading.value = false;
+    });
+
+    player.on('canplay', () => {
+      console.log('Video can play');
+      loading.value = false;
+    });
+
+    player.on('error', (e) => {
+      console.error('Video.js error:', e);
+      const playerError = player.error();
+      if (playerError) {
+        error.value = `Error de reproducción: ${playerError.message || 'Error desconocido'}`;
+        emit('error', playerError);
+      }
+      loading.value = false;
+    });
+
+    player.on('ended', () => {
+      console.log('Video ended');
       emit('ended');
-    }
+    });
+
+    // Force controls to be visible
+    player.ready(function() {
+      this.controlBar.show();
+      console.log('Player ready, stream URL:', streamUrl.value);
+    });
+
   } catch (err) {
-    console.error('Error parsing iframe message:', err);
+    console.error('Error initializing player:', err);
+    error.value = 'Error al inicializar el reproductor';
+    loading.value = false;
   }
 };
 
 onMounted(() => {
-  window.addEventListener('message', handleMessage);
-
-  // Set a timeout to hide loading spinner even if load event doesn't fire
-  setTimeout(() => {
-    if (loading.value) {
-      loading.value = false;
-    }
-  }, 3000);
+  initializePlayer();
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('message', handleMessage);
+  if (player) {
+    player.dispose();
+    player = null;
+  }
 });
 </script>
 
-<style scoped>
-.jellyfin-player-container {
+<style>
+/* Global styles for Video.js - NOT scoped */
+.video-player-container {
   position: relative;
   width: 100%;
   height: 100vh;
@@ -131,16 +180,26 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.jellyfin-iframe {
+.video-player-container .video-js {
+  width: 100% !important;
+  height: 100% !important;
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: #000;
 }
 
+/* Force controls to be visible */
+.video-player-container .vjs-control-bar {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.video-player-container .vjs-big-play-button {
+  display: block !important;
+}
+
+/* Loading overlay */
 .loading-overlay {
   position: absolute;
   top: 0;
@@ -153,6 +212,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   background: rgba(0, 0, 0, 0.9);
   z-index: 999;
+  pointer-events: none;
 }
 
 .spinner {
@@ -176,6 +236,7 @@ onBeforeUnmount(() => {
   font-size: 18px;
 }
 
+/* Error overlay */
 .error-overlay {
   position: absolute;
   top: 0;
@@ -190,6 +251,7 @@ onBeforeUnmount(() => {
   color: white;
   padding: 20px;
   text-align: center;
+  z-index: 1000;
 }
 
 .error-icon {
