@@ -4,15 +4,22 @@ import { useAuthStore } from '@/store/auth';
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
     const authStore = useAuthStore();
+
+    // Set default Content-Type only if not already set and not FormData
+    if (!config.headers['Content-Type'] && !(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+
+    // Don't set Content-Type for FormData - let axios/browser handle it
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
 
     if (authStore.accessToken) {
       config.headers.Authorization = `Bearer ${authStore.accessToken}`;
