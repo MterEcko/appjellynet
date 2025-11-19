@@ -12,7 +12,7 @@
 
     <!-- Video Player -->
     <VideoPlayer
-      v-if="itemDetails && serverUrl"
+      v-if="itemDetails && serverUrl && jellyfinToken"
       :key="mediaSourceId"
       :item-id="itemId"
       :server-url="serverUrl"
