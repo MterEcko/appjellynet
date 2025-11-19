@@ -9,7 +9,8 @@ const router = Router();
 router.get('/playback/:adType', authMiddleware, adController.getAdForPlayback);
 router.post('/views', authMiddleware, adController.recordAdView);
 
-// Admin routes
+// Admin routes - require authentication first, then admin check
+router.use(authMiddleware);
 router.use(adminMiddleware);
 
 // Get all ads
