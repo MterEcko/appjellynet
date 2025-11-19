@@ -1,510 +1,144 @@
 <template>
-  <div class="video-player-container">
-    <!-- Ad Overlay -->
-    <div v-if="isPlayingAd" class="ad-overlay">
-      <div class="ad-info">
-        <span class="ad-badge">Anuncio</span>
-        <span v-if="adTimeRemaining > 0" class="ad-timer">
-          El contenido comenzará en {{ adTimeRemaining }}s
-        </span>
-      </div>
-      <button
-        v-if="canSkipAd"
-        @click="skipAd"
-        class="skip-ad-button"
-      >
-        Saltar anuncio →
-      </button>
-    </div>
-
-    <!-- Video Element -->
-    <video
-      ref="videoPlayer"
-      class="video-js vjs-default-skin vjs-big-play-centered"
-      @ended="handleVideoEnded"
-      @timeupdate="handleTimeUpdate"
-      @play="handlePlay"
-      @pause="handlePause"
-    ></video>
+  <div class="jellyfin-player-container">
+    <!-- Jellyfin Web Player in iframe -->
+    <iframe
+      v-if="jellyfinPlayerUrl"
+      ref="playerIframe"
+      :src="jellyfinPlayerUrl"
+      class="jellyfin-iframe"
+      allowfullscreen
+      allow="autoplay; fullscreen; picture-in-picture"
+      @load="handleIframeLoad"
+    ></iframe>
 
     <!-- Loading Spinner -->
     <div v-if="loading" class="loading-overlay">
       <div class="spinner"></div>
-      <p>Cargando...</p>
+      <p>Cargando reproductor...</p>
+    </div>
+
+    <!-- Error State -->
+    <div v-if="error" class="error-overlay">
+      <svg class="error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <h2>Error al cargar el reproductor</h2>
+      <p>{{ error }}</p>
     </div>
   </div>
 </template>
 
-<script>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
-import videojs from 'video.js';
-import 'video.js/dist/video-js.css';
-import api from '@/services/api';
+<script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 
-export default {
-  name: 'VideoPlayer',
-  props: {
-    itemId: {
-      type: String,
-      required: true,
-    },
-    serverUrl: {
-      type: String,
-      required: true,
-    },
-    mediaSourceId: {
-      type: String,
-      required: true,
-    },
-    jellyfinToken: {
-      type: String,
-      required: true,
-    },
+const props = defineProps({
+  itemId: {
+    type: String,
+    required: true,
   },
-  emits: ['ended', 'error'],
-  setup(props, { emit }) {
-    const videoPlayer = ref(null);
-    let player = null;
-
-    const loading = ref(true);
-    const isPlayingAd = ref(false);
-    const currentAd = ref(null);
-    const adTimeRemaining = ref(0);
-    const canSkipAd = ref(false);
-    const adStartTime = ref(0);
-
-    let midrollPositions = [];
-    let shownMidrolls = new Set();
-    let contentDuration = 0;
-
-    /**
-     * Initialize video player
-     */
-    const initPlayer = async () => {
-      try {
-        loading.value = true;
-
-        // Wait for next tick to ensure DOM is ready
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Initialize Video.js player first
-        player = videojs(videoPlayer.value, {
-          fluid: true,
-          aspectRatio: '16:9',
-          controls: true,
-          autoplay: false,
-          preload: 'auto',
-          playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
-          controlBar: {
-            volumePanel: {
-              inline: false
-            },
-            pictureInPictureToggle: true,
-            remainingTimeDisplay: true,
-            progressControl: true,
-            playToggle: true,
-            volumePanel: true,
-            fullscreenToggle: true,
-          },
-          html5: {
-            vhs: {
-              overrideNative: true
-            },
-            nativeAudioTracks: false,
-            nativeVideoTracks: false
-          }
-        });
-
-        // Load content
-        const contentUrl = `${props.serverUrl}/Videos/${props.itemId}/stream?Static=true&mediaSourceId=${props.mediaSourceId}&api_key=${props.jellyfinToken}`;
-
-        player.src({
-          type: 'video/mp4',
-          src: contentUrl,
-        });
-
-        // Ensure controls are visible
-        player.controls(true);
-
-        player.on('loadedmetadata', () => {
-          contentDuration = player.duration();
-          loading.value = false;
-          // Optional: Try to show ads only if configured
-          // calculateMidrollPositions();
-        });
-
-        player.on('error', (error) => {
-          console.error('Player error:', error);
-          loading.value = false;
-        });
-
-        // Set loading to false after 2 seconds as fallback
-        setTimeout(() => {
-          loading.value = false;
-        }, 2000);
-
-        // Optional: Mid-roll ads (commented out for now)
-        // player.on('timeupdate', checkMidrollPositions);
-
-        // Optional: Try to show pre-roll ad (non-blocking)
-        // showPrerollAd().catch(err => console.log('No pre-roll ad:', err));
-
-      } catch (error) {
-        console.error('Failed to initialize player:', error);
-        loading.value = false;
-        emit('error', error);
-      }
-    };
-
-    /**
-     * Show pre-roll ad
-     */
-    const showPrerollAd = async () => {
-      try {
-        const response = await api.post('/ads/select', {
-          type: 'PREROLL',
-          contentId: props.itemId,
-        });
-
-        const ad = response.data.data;
-        if (ad) {
-          await playAd(ad);
-        }
-      } catch (error) {
-        console.error('Failed to load pre-roll ad:', error);
-        // Continue without ad
-      }
-    };
-
-    /**
-     * Play an ad
-     */
-    const playAd = (ad) => {
-      return new Promise((resolve) => {
-        currentAd.value = ad;
-        isPlayingAd.value = true;
-        adStartTime.value = Date.now();
-        adTimeRemaining.value = ad.duration;
-        canSkipAd.value = false;
-
-        // Initialize ad player if not exists
-        if (!player) {
-          player = videojs(videoPlayer.value, {
-            fluid: true,
-            aspectRatio: '16:9',
-            controls: false, // Disable controls for ads
-          });
-        }
-
-        // Load ad
-        const adUrl = ad.url.startsWith('http') ? ad.url : `${import.meta.env.VITE_API_URL.replace('/api', '')}${ad.url}`;
-
-        player.src({
-          type: 'video/mp4',
-          src: adUrl,
-        });
-
-        player.play();
-
-        // Countdown timer
-        const countdownInterval = setInterval(() => {
-          const elapsed = Math.floor((Date.now() - adStartTime.value) / 1000);
-          adTimeRemaining.value = Math.max(0, ad.duration - elapsed);
-
-          // Allow skip after specified time
-          if (ad.skipAfter && elapsed >= ad.skipAfter) {
-            canSkipAd.value = true;
-          }
-
-          if (adTimeRemaining.value === 0) {
-            clearInterval(countdownInterval);
-          }
-        }, 1000);
-
-        // Ad ended
-        player.one('ended', async () => {
-          clearInterval(countdownInterval);
-          await trackAdView(ad, true, false, ad.duration);
-          isPlayingAd.value = false;
-          currentAd.value = null;
-          player.controls(true); // Re-enable controls
-          resolve();
-        });
-      });
-    };
-
-    /**
-     * Skip ad
-     */
-    const skipAd = async () => {
-      if (!canSkipAd.value || !currentAd.value) return;
-
-      const watchedSeconds = Math.floor((Date.now() - adStartTime.value) / 1000);
-      await trackAdView(currentAd.value, false, true, watchedSeconds);
-
-      player.pause();
-      isPlayingAd.value = false;
-      currentAd.value = null;
-      player.controls(true);
-    };
-
-    /**
-     * Track ad view
-     */
-    const trackAdView = async (ad, completed, skipped, watchedSeconds) => {
-      try {
-        await api.post('/ads/track', {
-          adId: ad.id,
-          contentId: props.itemId,
-          completed,
-          skipped,
-          watchedSeconds,
-        });
-      } catch (error) {
-        console.error('Failed to track ad view:', error);
-      }
-    };
-
-    /**
-     * Calculate mid-roll positions
-     */
-    const calculateMidrollPositions = async () => {
-      if (contentDuration < 600) return; // No mid-rolls for content < 10 minutes
-
-      try {
-        const response = await api.post('/ads/midroll-positions', {
-          contentDurationSeconds: Math.floor(contentDuration),
-          midrollCount: 2,
-        });
-
-        midrollPositions = response.data.data.positions;
-      } catch (error) {
-        console.error('Failed to calculate mid-roll positions:', error);
-      }
-    };
-
-    /**
-     * Check for mid-roll positions
-     */
-    const checkMidrollPositions = async () => {
-      if (isPlayingAd.value || !player) return;
-
-      const currentTime = Math.floor(player.currentTime());
-
-      for (const position of midrollPositions) {
-        if (!shownMidrolls.has(position) && currentTime >= position && currentTime < position + 5) {
-          shownMidrolls.add(position);
-          await showMidrollAd();
-          break;
-        }
-      }
-    };
-
-    /**
-     * Show mid-roll ad
-     */
-    const showMidrollAd = async () => {
-      try {
-        const response = await api.post('/ads/select', {
-          type: 'MIDROLL',
-          contentId: props.itemId,
-        });
-
-        const ad = response.data.data;
-        if (ad) {
-          const resumePosition = player.currentTime();
-          player.pause();
-          await playAd(ad);
-          player.currentTime(resumePosition);
-          player.play();
-        }
-      } catch (error) {
-        console.error('Failed to load mid-roll ad:', error);
-      }
-    };
-
-    /**
-     * Handle video ended
-     */
-    const handleVideoEnded = () => {
-      emit('ended');
-    };
-
-    /**
-     * Handle time update
-     */
-    const handleTimeUpdate = () => {
-      // Report progress to Jellyfin
-      if (player && !isPlayingAd.value) {
-        const positionTicks = Math.floor(player.currentTime() * 10000000);
-        // You can implement progress reporting here
-      }
-    };
-
-    /**
-     * Handle play
-     */
-    const handlePlay = () => {
-      // Player started/resumed
-    };
-
-    /**
-     * Handle pause
-     */
-    const handlePause = async () => {
-      if (isPlayingAd.value) return;
-
-      // Show pause-roll ad
-      try {
-        const response = await api.post('/ads/select', {
-          type: 'PAUSEROLL',
-          contentId: props.itemId,
-        });
-
-        const ad = response.data.data;
-        if (ad) {
-          // You can show pause-roll as overlay instead of interrupting
-          console.log('Pause-roll ad available:', ad);
-        }
-      } catch (error) {
-        console.error('Failed to load pause-roll ad:', error);
-      }
-    };
-
-    /**
-     * Cleanup
-     */
-    const cleanup = () => {
-      if (player) {
-        player.dispose();
-        player = null;
-      }
-    };
-
-    onMounted(() => {
-      initPlayer();
-    });
-
-    onBeforeUnmount(() => {
-      cleanup();
-    });
-
-    return {
-      videoPlayer,
-      loading,
-      isPlayingAd,
-      adTimeRemaining,
-      canSkipAd,
-      skipAd,
-      handleVideoEnded,
-      handleTimeUpdate,
-      handlePlay,
-      handlePause,
-    };
+  serverUrl: {
+    type: String,
+    required: true,
   },
+  mediaSourceId: {
+    type: String,
+    required: false,
+  },
+  jellyfinToken: {
+    type: String,
+    required: true,
+  },
+});
+
+const emit = defineEmits(['ended', 'error']);
+
+const loading = ref(true);
+const error = ref(null);
+const playerIframe = ref(null);
+
+// Construct Jellyfin web player URL
+const jellyfinPlayerUrl = computed(() => {
+  try {
+    // Use Jellyfin's web client video player
+    const baseUrl = props.serverUrl.replace('/api', '');
+
+    // Build the URL to Jellyfin's web player
+    // Format: /web/index.html#!/video?id=ITEMID&mediaSourceId=MEDIASOURCEID&api_key=TOKEN
+    let url = `${baseUrl}/web/index.html#!/video?id=${props.itemId}`;
+
+    if (props.mediaSourceId) {
+      url += `&mediaSourceId=${props.mediaSourceId}`;
+    }
+
+    url += `&api_key=${props.jellyfinToken}`;
+
+    // Add auto-play parameter
+    url += '&autoplay=true';
+
+    return url;
+  } catch (err) {
+    console.error('Error building Jellyfin URL:', err);
+    error.value = 'Error al construir la URL del reproductor';
+    return null;
+  }
+});
+
+const handleIframeLoad = () => {
+  loading.value = false;
+  console.log('Jellyfin player loaded');
 };
+
+// Listen for messages from iframe (for ended event)
+const handleMessage = (event) => {
+  // Check if message is from Jellyfin player
+  if (event.origin !== new URL(props.serverUrl).origin) {
+    return;
+  }
+
+  try {
+    const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+
+    if (data.type === 'playbackstop' || data.type === 'ended') {
+      emit('ended');
+    }
+  } catch (err) {
+    console.error('Error parsing iframe message:', err);
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('message', handleMessage);
+
+  // Set a timeout to hide loading spinner even if load event doesn't fire
+  setTimeout(() => {
+    if (loading.value) {
+      loading.value = false;
+    }
+  }, 3000);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('message', handleMessage);
+});
 </script>
 
-<style>
-.video-player-container {
+<style scoped>
+.jellyfin-player-container {
   position: relative;
   width: 100%;
   height: 100vh;
   background: #000;
+  overflow: hidden;
 }
 
-.video-js {
-  width: 100%;
-  height: 100%;
-}
-
-/* Force controls to be visible */
-.video-js.vjs-has-started .vjs-control-bar {
-  display: flex !important;
-}
-
-.video-js .vjs-control-bar {
-  display: flex !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  background-color: rgba(0, 0, 0, 0.7) !important;
-}
-
-.video-js.vjs-user-inactive.vjs-playing .vjs-control-bar {
-  opacity: 0;
-  transition: opacity 1s;
-}
-
-.video-js.vjs-user-active.vjs-playing .vjs-control-bar,
-.video-js.vjs-paused .vjs-control-bar {
-  opacity: 1 !important;
-}
-
-/* Make sure controls appear on top */
-.video-js .vjs-control-bar {
-  z-index: 100 !important;
-}
-
-/* Ensure big play button is visible */
-.video-js .vjs-big-play-button {
-  display: block !important;
-}
-
-.ad-overlay {
+.jellyfin-iframe {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1000;
-  pointer-events: none;
-}
-
-.ad-info {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ad-badge {
-  background: #E50914;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: bold;
-  width: fit-content;
-}
-
-.ad-timer {
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.skip-ad-button {
-  position: absolute;
-  bottom: 80px;
-  right: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #000;
+  width: 100%;
+  height: 100%;
   border: none;
-  padding: 12px 24px;
-  border-radius: 4px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  pointer-events: all;
-  transition: background 0.2s;
-}
-
-.skip-ad-button:hover {
-  background: rgba(255, 255, 255, 1);
+  background: #000;
 }
 
 .loading-overlay {
@@ -540,5 +174,38 @@ export default {
   margin-top: 16px;
   color: white;
   font-size: 18px;
+}
+
+.error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  color: white;
+  padding: 20px;
+  text-align: center;
+}
+
+.error-icon {
+  width: 64px;
+  height: 64px;
+  color: #E50914;
+  margin-bottom: 20px;
+}
+
+.error-overlay h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.error-overlay p {
+  color: #999;
+  font-size: 16px;
 }
 </style>
