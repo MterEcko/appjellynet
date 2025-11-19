@@ -188,15 +188,39 @@ onBeforeUnmount(() => {
   left: 0;
 }
 
-/* Force controls to be visible */
+/* Force controls to be visible and properly positioned */
 .video-player-container .vjs-control-bar {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 3em !important;
+  background-color: rgba(43, 51, 63, 0.7) !important;
 }
 
+/* Keep controls visible even when user is inactive */
+.video-player-container .vjs-has-started.vjs-user-inactive.vjs-playing .vjs-control-bar {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) !important;
+}
+
+/* Ensure big play button is visible */
 .video-player-container .vjs-big-play-button {
   display: block !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* Hide big play button when playing */
+.video-player-container .vjs-has-started .vjs-big-play-button {
+  display: none !important;
 }
 
 /* Loading overlay */
